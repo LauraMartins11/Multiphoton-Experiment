@@ -40,10 +40,9 @@ class XPCounts():
     """
 
 
-    def __init__(self, counts_array, channel_eff, qbit_number):
+    def __init__(self, counts_array, qbit_number):
         self.counts_array = counts_array
         self.qbit_number = qbit_number # int(np.log2(np.shape(self.counts_array)[1]))
-        self.channel_eff = channel_eff
 
         self.base_2 = 2**np.linspace(0,self.qbit_number-1,self.qbit_number)
         self.base_3 = 3**np.linspace(0,self.qbit_number-1,self.qbit_number)
@@ -117,13 +116,10 @@ class XPCounts():
                 self.total_counts_array,(
                         2**self.qbit_number,3**self.qbit_number)).transpose()
 
-    def correct_counts_with_channels_eff(self):
+    def correct_counts_with_channels_eff(self, channel_eff):
         for w in range(3**self.qbit_number):
             ### The ordering of the channel_eff matches with the covention: 0: VV; 1: VH; 2: HV; 3: HH (this changes depending on how we save data)
-            self.counts_array[w][0]=self.counts_array[w][0]/float(self.channel_eff[2])
-            self.counts_array[w][1]=self.counts_array[w][1]/float(self.channel_eff[3])
-            self.counts_array[w][2]=self.counts_array[w][2]/float(self.channel_eff[0])
-            self.counts_array[w][3]=self.counts_array[w][3]/float(self.channel_eff[1])
+            self.counts_array[w] /= channel_eff[[2, 3, 0, 1]].astype(float)
 
 
 class TheoreticalCounts(XPCounts):

@@ -14,6 +14,7 @@ from QuantumStates.TriDiagonalMatrix import TriDiagonalMatrix
 
 import heapq
 import os
+from pathlib import Path
 from itertools import combinations
 import time
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ class Tomography():
         """
         self.qbit_number = qbit_number
         self.xp_counts = XPCounts(xp_counts, self.qbit_number)
-        self.working_dir = working_dir
+        self.working_dir = Path(working_dir)
         os.chdir(self.working_dir)
         print('Direct Inversion Tomography Initialized')
 
@@ -54,8 +55,7 @@ class Tomography():
         meaning that it is not necessarily positive semi-definite.
         """
         pauli_operators_array = np.load(
-                self.working_dir+'/SavedVariables/Pauli'+str(self.qbit_number)
-                +'.npy')
+                self.working_dir / 'SavedVariables'/ f'Pauli{self.qbit_number}.npy')
         xp_pauli_expectations = ExperimentalPauliExpectations(
                 self.qbit_number,self.xp_counts).pauli_expectations_array
         return np.sum(np.resize(xp_pauli_expectations,(
@@ -84,7 +84,7 @@ class LRETomography():
     Likelihood estimation.
     """
 
-    def __init__(self, qbit_number, xp_counts, channel_eff, working_dir):
+    def __init__(self, qbit_number, xp_counts, working_dir):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
@@ -93,8 +93,8 @@ class LRETomography():
         - 'working_dir' : directory to save and load data
         """
         self.qbit_number = qbit_number
-        self.xp_counts = XPCounts(xp_counts, channel_eff, self.qbit_number)
-        self.working_dir = working_dir
+        self.xp_counts = XPCounts(xp_counts, self.qbit_number)
+        self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
         os.chdir(self.working_dir)
@@ -103,11 +103,9 @@ class LRETomography():
     def get_theta_LS(self):
         """Function to get the vector of coordinates of the density matrix
         in the basis of Pauli operators."""
-        X = np.load(self.working_dir+'/SavedVariables/X_matrix'+str(
-                self.qbit_number)+".npy")
+        X = np.load(self.working_dir / 'SavedVariables' / f'X_matrix{self.qbit_number}.npy')
         invXtX_matrix = np.load(
-                self.working_dir+'/SavedVariables/invXtX_matrix'+str(
-                        self.qbit_number)+".npy")
+                self.working_dir / 'SavedVariables' / f'invXtX_matrix{self.qbit_number}.npy')
         Y = self.xp_counts.get_xp_probas() - 1/2**self.qbit_number
         XtY = np.sum(X*np.resize(Y,(4**self.qbit_number - 1,
                                     3**self.qbit_number,2**self.qbit_number
@@ -118,8 +116,7 @@ class LRETomography():
         """Function that calculates an approximation of the density matrix,
         using the linear regression estimation method"""
         pauli_operators_array = np.load(
-                self.working_dir+'/SavedVariables/Pauli'+str(self.qbit_number
-                                                             )+'.npy')
+                self.working_dir / 'SavedVariables'/ f'Pauli{self.qbit_number}.npy')
         theta_LS = self.get_theta_LS()
 
         return np.eye(2**self.qbit_number)/2**self.qbit_number + np.sum(
@@ -139,17 +136,17 @@ class LRETomography():
         #method, from experimental data.
         self.pseudo_state = self.LREstate()
 
-    def run(self, correct_eff, print_nc):
+    def run(self, print_nc=False, correct_eff=None):
         """
         Runs the pseudo tomography to get generate a state out of the
         experimental data, using the LRE method and fast maximum likelihood
         estimation."""
 
-        if correct_eff == 'y':
-            self.xp_counts.correct_counts_with_channels_eff()
+        if correct_eff is not None:
+            self.xp_counts.correct_counts_with_channels_eff(correct_eff)
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
-        if print_nc == 'y':
+        if print_nc:
             BasesO=['DD','DL','DH','LD','LL','LH', 'HD','HL', 'HH']
             for w in range(3**self.qbit_number):
                 aux=0
