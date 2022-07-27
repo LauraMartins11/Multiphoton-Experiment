@@ -41,7 +41,7 @@ class Tomography():
         - 'working_dir' : directory to save and load data
         """
         self.qbit_number = qbit_number
-        self.xp_counts = XPCounts(xp_counts, self.qbit_number)
+        self.xp_counts = xp_counts
         self.working_dir = Path(working_dir)
         os.chdir(self.working_dir)
         print('Direct Inversion Tomography Initialized')
@@ -94,6 +94,7 @@ class LRETomography():
         """
         self.qbit_number = qbit_number
         self.xp_counts = XPCounts(xp_counts, self.qbit_number)
+        #print(self.xp_counts.counts_array)
         self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
@@ -147,7 +148,7 @@ class LRETomography():
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
         if print_nc:
-            BasesO=['DD','DL','DH','LD','LL','LH', 'HD','HL', 'HH']
+            BasesO=['DD','DL','Dv','LD','LL','LV', 'VD','VL', 'VV']
             for w in range(3**self.qbit_number):
                 aux=0
                 aux=np.max(np.sum(self.xp_counts.counts_array, 1))

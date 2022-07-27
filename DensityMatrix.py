@@ -31,10 +31,11 @@ def fidelity(dm, pure):
         return pure@dm@np.transpose(np.conjugate(pure))
 
 
-class DensityMatrix():
-### Once we have a state in density matrix form we want to calculate different things with it
-### With this class we want to be able to easily calculate all these quantities regarding our state
-
+class DensityMatrix:
+    """
+    Once we have a state in density matrix form we want to calculate different things with it
+    With this class we want to be able to easily calculate all these quantities regarding our state
+    """
     def __init__(self, state):
         self.state = state
 
@@ -49,11 +50,15 @@ class DensityMatrix():
     def fidelity_to_pure(self, pure):
         return pure@self.state@np.transpose(np.conjugate(pure))
 
+    """
+    calculate_errors is a method that associates an uncertainty self.std to a density matrix based on the xp_counts_arr
+    it considers poissonian noise and waveplates uncertainties
+    """
     def calculate_errors(self, xp_counts_arr, error_runs, bell):
         lines, columns = np.shape(errors.OBSERVABLES)
         xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         dm_sim=np.zeros((error_runs, 2**self.qbit_number,2**self.qbit_number), dtype=complex)
-        fidelity_sim=np.zeros((error_runs), dtype=float)
+        fidelity_sim=np.zeros((error_runs), dtype=complex)
 
         proj=['vv', 'vh', 'hv', 'hh']
         for i in range(error_runs):
@@ -61,31 +66,55 @@ class DensityMatrix():
                 N_total=np.sum(xp_counts_arr[k])
                 for l in range(columns):
                     proj_basis=errors.OBSERVABLES[k][0]
+
+                    """
+                    we sample a value within a normal distribution for each waveplate we are using,
+                    given a mean value that is definied in the dictionaries in errors.py
+                    """
                     angle_hwp_arya=np.random.normal(loc=errors.HWP_DICT[proj_basis[0]], scale=errors.SIGMA_HWP_ARYA, size=None)
                     angle_qwp_arya=np.random.normal(loc=errors.QWP_DICT[proj_basis[0]], scale=errors.SIGMA_QWP_ARYA, size=None)
                     angle_hwp_cersei=np.random.normal(loc=errors.HWP_DICT[proj_basis[1]], scale=errors.SIGMA_HWP_CERSEI, size=None)
                     angle_qwp_cersei=np.random.normal(loc=errors.QWP_DICT[proj_basis[1]], scale=errors.SIGMA_QWP_CERSEI, size=None)
-
+                    
+                    """
+                    r_arya (r_cersei) is the rotation matrix that arya's (cersei's) qubit goes through
+                    before being measured in {V,H}
+                    - the angle of rotation is determined based on the uncertainty of our waveplates
+                    (determined the in lines above)
+                    
+                    when we do the tensor product of both (MB_change) and apply it to our state's density
+                    matrix (dm_sim_WP), we are performing a basis rotation before the projection in {V, H}
+                    (proj_basis_array)
+                    """
                     r_arya=wp_rotation(angle_qwp_arya,np.pi/2)@wp_rotation(angle_hwp_arya,np.pi)
                     r_cersei=wp_rotation(angle_qwp_cersei,np.pi/2)@wp_rotation(angle_hwp_cersei,np.pi)
 
-                    ### Here we need to calculate the probability for a given projector and with that calculate N_total
-                    ### for the xp_counts matrix and then we apply poissonian noise
                     MB_change=np.kron(r_arya,r_cersei)
 
                     dm_sim_WP=MB_change@self.state@np.transpose(np.conjugate(MB_change))
                     proj_basis_array=np.kron(errors.PROJECTORS[proj[l][0]],errors.PROJECTORS[proj[l][1]])
 
+                    """
+                    next we need to calculate the probability (p) of the state collapsing into the state represented
+                    by the projector
+
+                    with that we can generate a new xp_counts matrix (xp_counts_err), with each entry being a sample
+                    of the poissonian distibution with mean value (lam=p*N_total)
+                    """
                     p=proj_basis_array@dm_sim_WP@np.transpose(np.conjugate(proj_basis_array))
 
-                    xp_counts_err[k][l]=np.random.poisson(lam=p*N_total)
+                    if np.imag(p)<1e-13:
+                        xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
+                    else:
+                        print('You are getting complex probabilities')
 
             statetomo_err=LRETomography(int(self.qbit_number), xp_counts_err, str(Path(__file__).parent))
-            statetomo_err.run() ### Runs fast maximum likelihood estimation
+            statetomo_err.run()
             statetomo_err.quantum_state.get_density_matrix()
             dm_sim[i]=statetomo_err.quantum_state.get_density_matrix()
-
+            
             fidelity_sim[i]=fidelity(dm_sim[i], bell)
+
         self.mu, self.std = norm.fit(fidelity_sim)
 
     def __repr__(self):

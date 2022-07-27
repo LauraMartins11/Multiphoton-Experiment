@@ -24,7 +24,7 @@ import os
 
 import numpy as np
 
-class XPCounts():
+class XPCounts:
     """
     Class used to interact with the experimental numbers of event detected
     when simultaneously measuring the photons on different eigenvectors of
@@ -46,7 +46,6 @@ class XPCounts():
 
         self.base_2 = 2**np.linspace(0,self.qbit_number-1,self.qbit_number)
         self.base_3 = 3**np.linspace(0,self.qbit_number-1,self.qbit_number)
-        self.create_total_counts_array()
 
     def get_count_index(self,pauli_index,eigenvector_index):
         """
@@ -95,16 +94,18 @@ class XPCounts():
         pauli_index = int(np.dot(self.base_3, pauli_combination))
         return self.get_total_counts_index(pauli_index)
 
-    def create_total_counts_array(self):
+    @property
+    def total_counts_array(self):
         """creates the atribute 'total_counts_array' for the object XPCounts.
         It's a (3**qbit_number,)-shaped array. The i-th elements of the array
         contains the total number of counts that were measure in the i-th pauli
         measurement basis.
         """
-        self.total_counts_array = np.zeros(3**self.qbit_number)
+        total_counts_array = np.zeros(3**self.qbit_number)
         for pauli_index in range(3**self.qbit_number):
-            self.total_counts_array[pauli_index] = self.get_total_counts_index(
+            total_counts_array[pauli_index] = self.get_total_counts_index(
                     pauli_index)
+        return total_counts_array
 
 
     def get_xp_probas(self):
@@ -120,6 +121,8 @@ class XPCounts():
         for w in range(3**self.qbit_number):
             ### The ordering of the channel_eff matches with the covention: 0: VV; 1: VH; 2: HV; 3: HH (this changes depending on how we save data)
             self.counts_array[w] /= channel_eff[[2, 3, 0, 1]].astype(float)
+        ### Counts need to be integers
+        self.counts_array = np.round(self.counts_array)   
 
 
 class TheoreticalCounts(XPCounts):
@@ -164,4 +167,3 @@ class TheoreticalCounts(XPCounts):
                 self.counts_array[pauli_index,eigenvector_index] = int(new_state.pauli_state_proba(
                                   self.pauli_iterator[pauli_index],self.eigenstate_iterator[eigenvector_index])*total_count)
         self.counts_array[self.counts_array<0] = 0
-        self.create_total_counts_array()
