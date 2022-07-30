@@ -84,7 +84,7 @@ class LRETomography():
     Likelihood estimation.
     """
 
-    def __init__(self, qbit_number, xp_counts, working_dir):
+    def __init__(self, qbit_number, xp_counts, working_dir=Path(__file__).parent):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
@@ -94,7 +94,6 @@ class LRETomography():
         """
         self.qbit_number = qbit_number
         self.xp_counts = XPCounts(xp_counts, self.qbit_number)
-        #print(self.xp_counts.counts_array)
         self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)

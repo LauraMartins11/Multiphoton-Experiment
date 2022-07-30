@@ -23,8 +23,8 @@ from DensityMatrix import general_unitary#, apply_unitary_to_dm, fidelity_to_pur
 def function_fidelity(x, dm, bell):
     U1=general_unitary(x[:3])
     U2=general_unitary(x[3:])
-    return -np.abs(dm.apply_unitary(np.kron(U1,U2)).fidelity_to_pure(bell))
 
+    return -np.abs(dm.apply_unitary(np.kron(U1,U2)).fidelity(bell))
 
 class Results:
     def __init__(self, params, data_points, function, *fargs):
@@ -59,5 +59,5 @@ class Optimizer:
         self.results = results
 
     def optimize(self, data_points, *fargs, bounds=None):
-        params=diffev2(self.function, self.initial_guess, args=(data_points, *fargs), strategy=Best1Bin, bounds=bounds, npop=100, gtol=100, disp=True, ftol=1e-20, itermon=VerboseMonitor(50), handler=False)
+        params=diffev2(self.function, self.initial_guess, args=(data_points, *fargs), strategy=Best1Bin, bounds=bounds, npop=100, gtol=100, disp=True, ftol=1e-8, itermon=VerboseMonitor(50), handler=False)
         return self.results(params, data_points, self.function, *fargs)

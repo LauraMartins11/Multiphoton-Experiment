@@ -3,7 +3,7 @@
 
 import numpy as np
 import scipy
-from scipy.stats import norm
+from scipy.stats import norm, truncnorm
 import time
 
 import os
@@ -27,8 +27,12 @@ def wp_rotation(t, n):
 def apply_unitary_to_dm(dm, U):
     return U@dm@np.transpose(np.conjugate(U))
 
-def fidelity(dm, pure):
-        return pure@dm@np.transpose(np.conjugate(pure))
+def fid(dm, target):
+    shape=np.shape(target)
+    if (len(shape)>1):
+        return np.trace(scipy.linalg.sqrtm(scipy.linalg.sqrtm(target)@dm@scipy.linalg.sqrtm(target)))**2
+    else:
+        return np.transpose(np.conjugate(target))@dm@target
 
 
 class DensityMatrix:
@@ -47,18 +51,22 @@ class DensityMatrix:
         return DensityMatrix(apply_unitary_to_dm(self.state, U))
 
     ### Returns the fidelity of our density matrix to a pure state
-    def fidelity_to_pure(self, pure):
-        return pure@self.state@np.transpose(np.conjugate(pure))
+    def fidelity(self, target):
+        shape=np.shape(target)
+        if (len(shape)>1):
+            return np.trace(scipy.linalg.sqrtm(scipy.linalg.sqrtm(target)@self.state@scipy.linalg.sqrtm(target)))**2
+        else:
+            return np.transpose(np.conjugate(target))@self.state@target            
 
     """
     calculate_errors is a method that associates an uncertainty self.std to a density matrix based on the xp_counts_arr
     it considers poissonian noise and waveplates uncertainties
     """
-    def calculate_errors(self, xp_counts_arr, error_runs, bell):
+    def calculate_errors(self, xp_counts_arr, error_runs, target):
         lines, columns = np.shape(errors.OBSERVABLES)
         xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         dm_sim=np.zeros((error_runs, 2**self.qbit_number,2**self.qbit_number), dtype=complex)
-        fidelity_sim=np.zeros((error_runs), dtype=complex)
+        fidelity_sim=np.zeros((error_runs), dtype=float)
 
         proj=['vv', 'vh', 'hv', 'hh']
         for i in range(error_runs):
@@ -75,7 +83,7 @@ class DensityMatrix:
                     angle_qwp_arya=np.random.normal(loc=errors.QWP_DICT[proj_basis[0]], scale=errors.SIGMA_QWP_ARYA, size=None)
                     angle_hwp_cersei=np.random.normal(loc=errors.HWP_DICT[proj_basis[1]], scale=errors.SIGMA_HWP_CERSEI, size=None)
                     angle_qwp_cersei=np.random.normal(loc=errors.QWP_DICT[proj_basis[1]], scale=errors.SIGMA_QWP_CERSEI, size=None)
-                    
+
                     """
                     r_arya (r_cersei) is the rotation matrix that arya's (cersei's) qubit goes through
                     before being measured in {V,H}
@@ -92,8 +100,8 @@ class DensityMatrix:
                     MB_change=np.kron(r_arya,r_cersei)
 
                     dm_sim_WP=MB_change@self.state@np.transpose(np.conjugate(MB_change))
+                    ###proj[x][y] x and y refer to the output port of the PBS and to the player, respectively
                     proj_basis_array=np.kron(errors.PROJECTORS[proj[l][0]],errors.PROJECTORS[proj[l][1]])
-
                     """
                     next we need to calculate the probability (p) of the state collapsing into the state represented
                     by the projector
@@ -113,9 +121,15 @@ class DensityMatrix:
             statetomo_err.quantum_state.get_density_matrix()
             dm_sim[i]=statetomo_err.quantum_state.get_density_matrix()
             
-            fidelity_sim[i]=fidelity(dm_sim[i], bell)
+            ### I should make sure the fidelity is acutally real and not complex
+            fidelity_sim[i]=np.real(fid(dm_sim[i], target))
 
-        self.mu, self.std = norm.fit(fidelity_sim)
+        ### Should make sure that np.std is not assuming a normal distribution for the fidelities
+        ### Otherwise I should fit a truncated normal distribution
+        #self.mu, self.std, skew, kurt = truncnorm.fit(fidelity_sim, 0 , 1)
+        ### Also hould divide for the sqrt(samples)?
+        self.mu = np.mean(fidelity_sim)
+        self.std = np.std(fidelity_sim)
 
     def __repr__(self):
         return repr(self.state)

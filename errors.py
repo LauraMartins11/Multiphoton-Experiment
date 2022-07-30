@@ -36,6 +36,8 @@ OBSERVABLES=np.transpose(np.array([
     ['aa', 'ar', 'ah', 'ra', 'rr', 'rh', 'ha', 'hr', 'hh']])
     )
 
+# OBSERVABLES=['dd','da','ad','aa']
+
 ### Uncertainty on the WP
 SIGMA_HWP_ARYA=0.04*np.pi/180
 SIGMA_QWP_ARYA=0.1*np.pi/180
