@@ -119,10 +119,10 @@ class XPCounts:
 
     def correct_counts_with_channels_eff(self, channel_eff):
         for w in range(3**self.qbit_number):
-            ### The ordering of the channel_eff matches with the covention: 0: VV; 1: VH; 2: HV; 3: HH (this changes depending on how we save data)
+            ### The ordering of the channel_eff matches with the covention: 0: HH; 1: HV; 2: VH; 3: VV (this changes depending on how we save data)
             self.counts_array[w] /= channel_eff[[2, 3, 0, 1]].astype(float)
         ### Counts need to be integers
-        self.counts_array = np.round(self.counts_array)   
+        self.counts_array = np.round(self.counts_array)
 
 
 class TheoreticalCounts(XPCounts):

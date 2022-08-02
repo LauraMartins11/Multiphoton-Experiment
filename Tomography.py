@@ -147,7 +147,7 @@ class LRETomography():
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
         if print_nc:
-            BasesO=['DD','DL','Dv','LD','LL','LV', 'VD','VL', 'VV']
+            BasesO=['DD','DL','DH','LD','LL','LH', 'HD','HL', 'HH']
             for w in range(3**self.qbit_number):
                 aux=0
                 aux=np.max(np.sum(self.xp_counts.counts_array, 1))

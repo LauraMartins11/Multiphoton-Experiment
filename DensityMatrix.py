@@ -63,27 +63,29 @@ class DensityMatrix:
     it considers poissonian noise and waveplates uncertainties
     """
     def calculate_errors(self, xp_counts_arr, error_runs, target):
-        lines, columns = np.shape(errors.OBSERVABLES)
+        lines, columns = 3**self.qbit_number,2**self.qbit_number
         xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         dm_sim=np.zeros((error_runs, 2**self.qbit_number,2**self.qbit_number), dtype=complex)
         fidelity_sim=np.zeros((error_runs), dtype=float)
 
-        proj=['vv', 'vh', 'hv', 'hh']
+        proj=['hh','hv','vh','vv']
         for i in range(error_runs):
+            """
+            we sample a value within a normal distribution for each waveplate we are using,
+            given a mean value that is definied in the dictionaries in errors.py
+            """
+            shift_hwp_arya=np.random.normal(scale=errors.SIGMA_HWP_ARYA, size=None)
+            shift_qwp_arya=np.random.normal(scale=errors.SIGMA_QWP_ARYA, size=None)
+            shift_hwp_cersei=np.random.normal(scale=errors.SIGMA_HWP_CERSEI, size=None)
+            shift_qwp_cersei=np.random.normal(scale=errors.SIGMA_QWP_CERSEI, size=None)
             for k in range(lines):
                 N_total=np.sum(xp_counts_arr[k])
                 for l in range(columns):
-                    proj_basis=errors.OBSERVABLES[k][0]
-
-                    """
-                    we sample a value within a normal distribution for each waveplate we are using,
-                    given a mean value that is definied in the dictionaries in errors.py
-                    """
-                    angle_hwp_arya=np.random.normal(loc=errors.HWP_DICT[proj_basis[0]], scale=errors.SIGMA_HWP_ARYA, size=None)
-                    angle_qwp_arya=np.random.normal(loc=errors.QWP_DICT[proj_basis[0]], scale=errors.SIGMA_QWP_ARYA, size=None)
-                    angle_hwp_cersei=np.random.normal(loc=errors.HWP_DICT[proj_basis[1]], scale=errors.SIGMA_HWP_CERSEI, size=None)
-                    angle_qwp_cersei=np.random.normal(loc=errors.QWP_DICT[proj_basis[1]], scale=errors.SIGMA_QWP_CERSEI, size=None)
-
+                    proj_basis=errors.OBSERVABLES[k]
+                    angle_hwp_arya=errors.HWP_DICT[proj_basis[0]] + shift_hwp_arya
+                    angle_qwp_arya=errors.QWP_DICT[proj_basis[0]] + shift_qwp_arya
+                    angle_hwp_cersei=errors.HWP_DICT[proj_basis[1]] + shift_hwp_cersei
+                    angle_qwp_cersei=errors.QWP_DICT[proj_basis[1]] + shift_qwp_cersei
                     """
                     r_arya (r_cersei) is the rotation matrix that arya's (cersei's) qubit goes through
                     before being measured in {V,H}
