@@ -5,6 +5,3 @@ __pycache__/
 *.png
 StateTomoData/
 ProcessTomoData/
-Generated_data/
-FidvsPower/
-Estabilidade/

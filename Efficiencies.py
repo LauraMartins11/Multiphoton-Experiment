@@ -50,7 +50,7 @@ def get_channels_eff(datafiles, directory):
     os.chdir(directory)
     eff=np.array(['zz', 'za', 'az', 'aa']) ### 'a' refers to '-z'
     efficiencies_aux=np.zeros((len(eff), 4), dtype=float)
-
+    
     ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
     efficiencies_aux=select_lines_in_file(4, 8, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
     """

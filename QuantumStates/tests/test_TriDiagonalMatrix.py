@@ -1,4 +1,4 @@
-from Tomography.QuantumStates.TriDiagonalMatrix import TriDiagonalMatrix
+from tomography.QuantumStates.TriDiagonalMatrix import TriDiagonalMatrix
 import numpy as np
 
 

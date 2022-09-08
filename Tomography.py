@@ -6,10 +6,13 @@ Created on Wed Jan 10 14:41:58 2018
 """
 
 #from MeasurementData import *
-from PauliExpectations import *
-from ProjectorCounts import *
+from pauliexpectations import *
+from projectorcounts import *
 from QuantumStates import *
 from QuantumStates.TriDiagonalMatrix import TriDiagonalMatrix
+from densitymatrix import DensityMatrix, wp_rotation
+from player import Player
+import errors
 #%%
 
 import heapq
@@ -22,6 +25,7 @@ import numpy as np
 from scipy.optimize import least_squares
 import scipy.linalg as lin
 from tqdm import tqdm
+import functools as ft
 
 class Tomography():
     """
@@ -98,7 +102,6 @@ class LRETomography():
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
         os.chdir(self.working_dir)
-        #print('LRE Tomography Initialized')
 
     def get_theta_LS(self):
         """Function to get the vector of coordinates of the density matrix
@@ -155,6 +158,146 @@ class LRETomography():
 
         self.run_pseudo_tomo()
         self.quantum_state.set_density_matrix(self.pseudo_state)
+        self.state=DensityMatrix(self.quantum_state.get_density_matrix())
+
+
+    def permutation_elements(self, elements):
+        permuted=[]
+        
+        el_num=len(elements)
+        for m in range(el_num):
+            if self.qbit_number==1:
+                t=m
+                permuted.append(f"{elements[m]}")
+            elif self.qbit_number==2:
+                for n in range(el_num):
+                    t=n%2+2*(m%2)
+                    permuted.append(f"{elements[m]}{elements[n]}")
+            elif self.qbit_number==3:
+                for n in range(el_num):
+                    for o in range(el_num):
+                        t=o%2+2*(n%2)+4*(m%2)
+                        permuted.append(f"{elements[m]}{elements[n]}{elements[o]}")    
+            elif self.qbit_number==4:
+                for n in range(el_num):
+                    for o in range(el_num):
+                        for p in range(el_num):
+                            t=p%2+2*(o%2)+4*(n%2)+8*(m%2)
+                            permuted.append(f"{elements[m]}{elements[n]}{elements[o]}{elements[p]}")
+                            
+        return permuted
+    
+    def players_init(self, players):
+        players_list=[]
+        self.player_1=Player(players[0])
+        players_list.append(self.player_1)
+        if self.qbit_number>1:
+            self.player_2=Player(players[1])
+            players_list.append(self.player_2)
+            if self.qbit_number>2:
+                self.player_3=Player(players[2])
+                players_list.append(self.player_3)
+                if self.qbit_number>3:
+                    self.player_4=Player(players[3])
+                    players_list.append(self.player_4)
+        return players_list
+
+
+    def simulate_new_counts_with_uncertainties(self, players):
+        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis   
+        lines, columns = 3**self.qbit_number,2**self.qbit_number
+        self.xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
+        self.players_list=self.players_init(players)
+
+        proj=self.permutation_elements(["h","v"])
+        proj_basis=self.permutation_elements(["x","y","z"])
+
+        """
+            we sample a value within a normal distribution for each waveplate we are using,
+            given a mean value that is definied in the dictionaries in errors.py
+        """
+        shift_hwp=[]
+        shift_qwp=[]
+        for j in range(self.qbit_number):
+            shift_hwp.append(np.random.normal(scale=self.players_list[j].sigma_wp[0], size=None))
+            shift_qwp.append(np.random.normal(scale=self.players_list[j].sigma_wp[1], size=None))
+
+        for k in range(lines):
+            N_total=np.sum(self.xp_counts.counts_array[k])
+            for l in range(columns):
+
+                angle_hwp=[]
+                angle_qwp=[]
+                r=[]
+                projectors=[]
+                ### j defines the player
+                for j in range(self.qbit_number):
+
+                    angle_hwp.append(errors.HWP_DICT[proj_basis[k][j]] + shift_hwp[j])
+                    angle_qwp.append(errors.QWP_DICT[proj_basis[k][j]] + shift_qwp[j])
+
+                    """
+                    r is the rotation matrix that arya's (cersei's) qubit goes through
+                    before being measured in {V,H}
+                    - the angle of rotation is determined based on the uncertainty of our waveplates
+                    (determined the in lines above)
+                    
+                    when we do the tensor product of both (MB_change) and apply it to our state's density
+                    matrix (dm_sim_WP), we are performing a basis rotation before the projection in {V, H}
+                    (proj_basis_array)
+                    """ 
+                    
+                    r.append(wp_rotation(angle_qwp[j],np.pi/2)@wp_rotation(angle_hwp[j],np.pi))
+
+                    projectors.append(errors.PROJECTORS[proj[l][j]])
+
+                MB_change=ft.reduce(np.kron, r)
+
+                dm_sim_WP=MB_change@self.state.state@np.transpose(np.conjugate(MB_change))
+                ###proj[x][y] x and y refer to the output port of the PBS and to the player, respectively
+                proj_basis_array=ft.reduce(np.kron, projectors)
+                """
+                next we need to calculate the probability (p) of the state collapsing into the state represented
+                by the projector
+
+                with that we can generate a new xp_counts matrix (xp_counts_err), with each entry being a sample
+                of the poissonian distibution with mean value (lam=p*N_total)
+                """
+                p=proj_basis_array@dm_sim_WP@np.transpose(np.conjugate(proj_basis_array))
+
+                if np.imag(p)<1e-13:
+                    self.xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
+                else:
+                    print('You are getting complex probabilities')
+        return self.xp_counts_err
+
+
+    def calculate_fidelity_error(self, players, error_runs, opt, target, bounds=None, penalty=None):
+        
+        fidelity_sim=np.zeros((error_runs), dtype=float)
+
+        for i in range(error_runs):
+
+            simulated_counts=self.simulate_new_counts_with_uncertainties(players)
+
+            statetomo_err=LRETomography(int(self.qbit_number), simulated_counts, str(Path(__file__).parent))
+            statetomo_err.run()
+            dm_sim=statetomo_err.state
+           
+            result=opt.optimize(dm_sim, target, bounds=bounds, penalty=penalty)
+            fidelity_sim[i]=result.minimum()
+            
+            ### I should make sure the fidelity is acutally real and not complex
+            # fidelity_sim[i]=np.real(fid(dm_sim[i], target))
+
+        """
+        Should make sure that np.std is not assuming a normal distribution for the fidelities
+        Otherwise I should fit a truncated normal distribution
+        self.mu, self.std, skew, kurt = truncnorm.fit(fidelity_sim, 0 , 1)
+        Also hould divide for the sqrt(samples)?
+        """
+        self.fidelity_mu = np.mean(fidelity_sim)
+        self.fidelity_std = np.std(fidelity_sim)
 
 
 class GeneticTomography(LRETomography):

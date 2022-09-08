@@ -7,7 +7,7 @@ Created on Sun Jan 28 20:56:03 2018
 
 #%%
 
-from ProjectorCounts import *
+from projectorcounts import *
 from NestedForLoop import get_iterator
 
 #%%
