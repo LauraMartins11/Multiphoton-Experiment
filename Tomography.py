@@ -27,7 +27,7 @@ import scipy.linalg as lin
 from tqdm import tqdm
 import functools as ft
 
-class Tomography():
+class Tomography:
     """
     'Tomography' is the class including all function needed to perform a
     complete tomography of a multi-qubits state. It provides the interface for

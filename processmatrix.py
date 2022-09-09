@@ -103,6 +103,7 @@ class ProcessMatrix:
         fidelity_sim=np.zeros((error_runs), dtype=float)
 
         for i in range(error_runs):
+            print("Simulating error_run: ", i)
             simulated_counts=[]
             for j in range(input_number):
                 simulated_counts.append(tomographies[j].simulate_new_counts_with_uncertainties(players))
