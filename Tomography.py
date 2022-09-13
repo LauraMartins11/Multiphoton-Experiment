@@ -285,7 +285,52 @@ class LRETomography():
             dm_sim=statetomo_err.state
            
             result=opt.optimize(dm_sim, target, bounds=bounds, penalty=penalty)
+
             fidelity_sim[i]=result.minimum()
+            
+            ### I should make sure the fidelity is acutally real and not complex
+            # fidelity_sim[i]=np.real(fid(dm_sim[i], target))
+
+        """
+        Should make sure that np.std is not assuming a normal distribution for the fidelities
+        Otherwise I should fit a truncated normal distribution
+        self.mu, self.std, skew, kurt = truncnorm.fit(fidelity_sim, 0 , 1)
+        Also hould divide for the sqrt(samples)?
+        """
+        self.fidelity_mu = np.mean(fidelity_sim)
+        self.fidelity_std = np.std(fidelity_sim)
+
+    """
+    Same as funciton above but for the case where the target state is also experimental
+    In this case, the target needs to be an object of the LRETomography class
+    """
+    def calculate_fidelity_error_with_experimental_target(self, players, error_runs, opt, target, bounds=None, penalty=None):
+        
+        fidelity_sim=np.zeros((error_runs**2), dtype=float)
+        dm_sim=[]
+        target_sim=[]
+
+        for i in range(error_runs):
+
+            simulated_counts=self.simulate_new_counts_with_uncertainties(players)
+
+            statetomo_err=LRETomography(int(self.qbit_number), simulated_counts, str(Path(__file__).parent))
+            statetomo_err.run()
+            dm_sim.append(statetomo_err.state)
+
+            simulated_target_counts=target.simulate_new_counts_with_uncertainties(players)
+            
+            statetomo_target=LRETomography(int(self.qbit_number), simulated_target_counts, str(Path(__file__).parent))
+            statetomo_target.run()
+            target_sim.append(statetomo_target.state)
+
+        counter=0
+        for l in range(error_runs):
+            for m in range(error_runs):
+                result=opt.optimize(dm_sim[l], target_sim[m].state, bounds=bounds, penalty=penalty)
+
+                fidelity_sim[counter]=result.minimum()
+                counter+=1
             
             ### I should make sure the fidelity is acutally real and not complex
             # fidelity_sim[i]=np.real(fid(dm_sim[i], target))

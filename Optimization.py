@@ -150,5 +150,5 @@ class Optimizer:
         self.results = results
 
     def optimize(self, data_points, *fargs, bounds=None, penalty=None):
-        params=diffev2(self.function, self.initial_guess, args=(data_points, *fargs), penalty=penalty, strategy=Best1Bin, bounds=bounds, npop=50, gtol=100, disp=False, ftol=1e-8, itermon=VerboseMonitor(50), handler=False)
+        params=diffev2(self.function, self.initial_guess, args=(data_points, *fargs), penalty=penalty, strategy=Best1Bin, bounds=bounds, npop=50, gtol=100, disp=False, ftol=1e-8, handler=False)#, itermon=VerboseMonitor(50))
         return self.results(params, data_points, self.function, *fargs)
