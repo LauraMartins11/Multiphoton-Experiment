@@ -272,21 +272,42 @@ class LRETomography():
         return self.xp_counts_err
 
 
-    def calculate_fidelity_error(self, players, error_runs, opt, target, bounds=None, penalty=None):
-        
+    def calculate_dm_from_simulated_counts(self, players):
+
+        simulated_counts=self.simulate_new_counts_with_uncertainties(players)
+
+        statetomo_err=LRETomography(int(self.qbit_number), simulated_counts, str(Path(__file__).parent))
+        statetomo_err.run()
+        error_simulation_dm=statetomo_err
+
+        return(error_simulation_dm)
+
+
+    def calculate_fidelity_error(self, players, error_runs, opt, target, optimization=False, bounds=None, penalty=None):
+        self.players=players
+        self.error_runs=error_runs
+
+        self.error_simulation_dm=[]
+
         fidelity_sim=np.zeros((error_runs), dtype=float)
+        self.Us=[]
 
+        print("Simulating new states considering the uncertainties")
         for i in range(error_runs):
+            self.error_simulation_dm.append(self.calculate_dm_from_simulated_counts(self.players))
 
-            simulated_counts=self.simulate_new_counts_with_uncertainties(players)
+        if optimization is True:
+            print("Optimizing the fidelity between input and target up to a unitary")
 
-            statetomo_err=LRETomography(int(self.qbit_number), simulated_counts, str(Path(__file__).parent))
-            statetomo_err.run()
-            dm_sim=statetomo_err.state
-           
-            result=opt.optimize(dm_sim, target, bounds=bounds, penalty=penalty)
+            for i in range(error_runs):
+                result=opt.optimize(self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
+                self.Us.append(result.u)
 
-            fidelity_sim[i]=result.minimum()
+                fidelity_sim[i]=result.minimum()
+
+        else:
+            for i in range(error_runs):
+                fidelity_sim[i]=self.error_simulation_dm[i].fidelity(target)
             
             ### I should make sure the fidelity is acutally real and not complex
             # fidelity_sim[i]=np.real(fid(dm_sim[i], target))
@@ -302,38 +323,38 @@ class LRETomography():
 
     """
     Same as funciton above but for the case where the target state is also experimental
-    In this case, the target needs to be an object of the LRETomography class
+    Should add an option to optimize the fidelity with unitaries
+    This is only to be used after haveing ran the calculate_fidelity_error() before
     """
-    def calculate_fidelity_error_with_experimental_target(self, players, error_runs, opt, target, bounds=None, penalty=None):
-        
+    def calculate_fidelity_error_between_2_experimental_matrices(self, error_runs, players, target, apply_unitary_to_input=False, simulate_input_matrices=False):
+    
         fidelity_sim=np.zeros((error_runs**2), dtype=float)
-        dm_sim=[]
         target_sim=[]
 
-        for i in range(error_runs):
+        if simulate_input_matrices is True:
+            print("Simulating input state matrices. If you've used calculate_fidelity_error() before, set simulate_input_matrices=False.")
+            self.players=players
+            self.error_runs=error_runs
+            for j in range(self.error_runs):
+                self.error_simulation_dm=[]
+                self.error_simulation_dm.append(self.calculate_dm_from_simulated_counts(self.players))
 
-            simulated_counts=self.simulate_new_counts_with_uncertainties(players)
-
-            statetomo_err=LRETomography(int(self.qbit_number), simulated_counts, str(Path(__file__).parent))
-            statetomo_err.run()
-            dm_sim.append(statetomo_err.state)
-
-            simulated_target_counts=target.simulate_new_counts_with_uncertainties(players)
-            
-            statetomo_target=LRETomography(int(self.qbit_number), simulated_target_counts, str(Path(__file__).parent))
-            statetomo_target.run()
-            target_sim.append(statetomo_target.state)
+        print("Simulating output matrices")
+        for i in range(self.error_runs):
+            target_sim.append(target.calculate_dm_from_simulated_counts(self.players))
 
         counter=0
-        for l in range(error_runs):
-            for m in range(error_runs):
-                result=opt.optimize(dm_sim[l], target_sim[m].state, bounds=bounds, penalty=penalty)
+        if apply_unitary_to_input is True:
+            for l in range(self.error_runs):
+                for m in range(self.error_runs):
+                    fidelity_sim[counter]=self.error_simulation_dm[l].state.apply_unitary(self.Us[l]).fidelity(target_sim[m].state.state)
+                    counter+=1
 
-                fidelity_sim[counter]=result.minimum()
-                counter+=1
-            
-            ### I should make sure the fidelity is acutally real and not complex
-            # fidelity_sim[i]=np.real(fid(dm_sim[i], target))
+        else:
+            for l in range(self.error_runs):
+                for m in range(self.error_runs):
+                    fidelity_sim[counter]=self.error_simulation_dm[l].state.fidelity(target_sim[m].state.state)
+                    counter+=1
 
         """
         Should make sure that np.std is not assuming a normal distribution for the fidelities
@@ -341,8 +362,8 @@ class LRETomography():
         self.mu, self.std, skew, kurt = truncnorm.fit(fidelity_sim, 0 , 1)
         Also hould divide for the sqrt(samples)?
         """
-        self.fidelity_mu = np.mean(fidelity_sim)
-        self.fidelity_std = np.std(fidelity_sim)
+        self.fidelity_2_experimental_dms_mu = np.mean(fidelity_sim)
+        self.fidelity_2_experimental_dms_std = np.std(fidelity_sim)
 
 
 class GeneticTomography(LRETomography):
