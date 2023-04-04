@@ -147,6 +147,7 @@ class LRETomography():
 
         if correct_eff is not None:
             self.xp_counts.correct_counts_with_channels_eff(correct_eff)
+            print("I'm correcting efficiencies")
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
         if print_nc:

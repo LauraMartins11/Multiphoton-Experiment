@@ -13,3 +13,5 @@ class Player:
             self.sigma_wp=np.array([errors.SIGMA_HWP_BRAN, errors.SIGMA_HWP_BRAN])
         elif self.name==("Cersei" or "cersei" or "CERSEI"):
             self.sigma_wp=np.array([errors.SIGMA_HWP_CERSEI, errors.SIGMA_HWP_CERSEI])
+        elif self.name==("Dany" or "dany" or "DANY"):
+            self.sigma_wp=np.array([errors.SIGMA_HWP_DANY, errors.SIGMA_HWP_DANY])

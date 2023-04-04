@@ -1,0 +1,1016 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Thorlabs.MotionControl.DeviceManagerCLI;
+using System.Globalization;
+using Thorlabs.MotionControl.GenericMotorCLI;
+using Thorlabs.MotionControl.GenericMotorCLI.ControlParameters;
+using Thorlabs.MotionControl.GenericMotorCLI.AdvancedMotor;
+using Thorlabs.MotionControl.GenericMotorCLI.KCubeMotor;
+using Thorlabs.MotionControl.GenericMotorCLI.Settings;
+using Thorlabs.MotionControl.KCube.BrushlessMotorCLI;
+using System.IO;
+using System.Reflection;
+using System.Security.Cryptography;
+using SwabianInstruments.TimeTagger;
+
+
+/// <summary>
+///This program enables one to perform different photonic-based protocols, 
+///such as Quantum State Tomography, Quantum Teleportation and Anonymous Transmissions.
+///Usage :via pseudo
+/// </summary>
+namespace MotorsProtocol
+{
+    class Program
+    {
+        static void Main()
+        {   string culture = "en-US";
+            CultureInfo ci = new CultureInfo(culture);
+            Thread.CurrentThread.CurrentCulture = ci;
+            Thread.CurrentThread.CurrentUICulture = ci;
+
+            DateTime datetime = new DateTime();
+            /////////////////////////////  Fetching general parameters /////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+            //////////////////////////////////////// Finding the pseudo text ////////////////////////////////
+            Console.WriteLine("The pseudo is fetching...");
+            string current_path = Path.GetDirectoryName(
+                   System.Reflection.Assembly.GetExecutingAssembly().CodeBase).Substring(6);
+
+            string[] pseudo = File.ReadAllLines(current_path + "\\Config\\pseudo\\pseudo.txt");
+            
+            
+            /////////////// Parsing the players and their measurement stations //////////////////////////
+            String[] prePlayers = pseudo[0].Split(new String[] { "Players:", ";" },
+            StringSplitOptions.RemoveEmptyEntries);
+
+            
+            Dictionary<char, Player> Players = new Dictionary<char, Player>();
+
+            foreach (string b1 in prePlayers)
+
+            {
+
+                string bb1 = b1.Trim();
+                
+
+                string temp1 = bb1.Substring(1, bb1.Length -1);
+
+                String[] Measstat = temp1.Split(new String[] { "=", ",", "{", "}", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+
+                List<MeasStation> measurementStations = new List<MeasStation>(0);
+                foreach (string name in Measstat)
+                {
+                    measurementStations.Add(new MeasStation(current_path + "\\Config\\MeasStationConfig\\" + name + ".txt"));
+                }
+                Players.Add(bb1[0], new Player(Measstat.Length, measurementStations));
+               
+
+            }
+
+            ////Laura////
+            Console.WriteLine("Players " + Players);
+
+            //////////////////////////////////////// Parsing the basis and their angles ////////////////////////////
+            String[] basisnames = pseudo[1].Split(new String[] { ";", "basis:" },
+                   StringSplitOptions.RemoveEmptyEntries);
+
+            Dictionary<char, decimal[]> basestemp = new Dictionary<char, decimal[]>();
+
+            foreach (string b in basisnames)
+
+            {
+                string bb = b.Trim();
+
+                string temp = bb.Substring(1, bb.Length - 1);
+
+                String[] temp1 = temp.Split(new String[] { "=", ",", "(", ")", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+
+                
+
+                decimal[] angles = Array.ConvertAll(temp1, decimal.Parse);
+
+
+                basestemp.Add(bb[0], angles);
+
+            }
+
+
+            ////Laura////
+            Console.WriteLine("Basis " + basestemp);
+
+
+            String[] predelays = pseudo[2].Split(new String[] { "ChannelsDelay:", " ", "(", ")", "," },
+                   StringSplitOptions.RemoveEmptyEntries);
+            long[] delays = Array.ConvertAll(predelays, long.Parse);
+
+
+
+            String[] pretrigger = pseudo[3].Split(new String[] { "ChannelsTriggers:", " ","(",")", "," },
+                   StringSplitOptions.RemoveEmptyEntries);
+            double[] trigger = Array.ConvertAll(pretrigger, double.Parse);
+
+
+            String[] preCoinWindow = pseudo[4].Split(new String[] { "CoincidenceWindow:", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+            int[] CoincidenceWindow = Array.ConvertAll(preCoinWindow, int.Parse);
+
+            //////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////Fetching Protocols parameters /////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////
+
+
+            /////////////////////////////////// Get the number of Protocols ///////////////////////
+            String[] preprotocols = pseudo[5].Split(new String[] {"number of protocols:", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+
+            int numofProtocols = Convert.ToInt32(preprotocols[0].Trim());
+
+            ////Laura////
+            Console.WriteLine("Protocols " + preprotocols);
+            Console.WriteLine("Number of protocols " + numofProtocols);
+
+
+            ////////////////////////// Get each protocol's parameters /////////////////////////////////
+            //Dictionary<int, int[]> coincidence = new Dictionary<int, int[]>();
+            Dictionary<int, int[][]> coincidence = new Dictionary<int, int[][]>();
+           // 
+            Dictionary<int, int> measurementduration = new Dictionary<int, int>();
+            Dictionary<int, int> measurementnumberPract = new Dictionary<int, int>();
+            Dictionary<int, int> measurementnumber = new Dictionary<int, int>();
+            Dictionary<int, Char[]> protocolplayers = new Dictionary<int, Char[]>();
+            Dictionary<int, int> permuteOpplayers = new Dictionary<int, int>();
+            Dictionary<int, String[]> protocoloperations = new Dictionary<int, String[]>();
+            Dictionary<int, string> directories = new Dictionary<int, string>();
+           // 
+
+            for (int k =0;k<numofProtocols;k++)
+            {
+               string protname= pseudo[8 + (k * 7)].Split(new String[] { ":" },
+                   StringSplitOptions.RemoveEmptyEntries)[1].Trim();
+                
+                directories.Add(k, (pseudo[13 + (k * 7)].Replace("save directory= ","")+"\\" +protname +"\\"));
+                
+
+                String[] chann = pseudo[9+(k*7)].Split(new String[] { ";", "CoincidenceChannels(", ")", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+                List<int[]> channgrps = new List<int[]>();
+                
+                for (int no = 0; no < chann.Length; no++)
+                {
+                    channgrps.Add(Array.ConvertAll(chann[no].Split(new String[] { "{", "}", "," }, StringSplitOptions.RemoveEmptyEntries), int.Parse));
+                    
+                }
+                   
+                int[][] coincidencechannels =  channgrps.ToArray();
+                coincidence.Add(k, coincidencechannels);
+
+                
+                ////Laura////
+                Console.WriteLine("Coincidences " + coincidence);
+
+                String[] timeofmeas = pseudo[10 + (k * 7)].Split(new String[] {"Measurement time in ms=", " " },
+                   StringSplitOptions.RemoveEmptyEntries);
+                int[] measurementTime = Array.ConvertAll(timeofmeas, int.Parse);
+                measurementduration.Add(k, measurementTime[0]);
+
+                
+
+                String[] preoperation = pseudo[12 + (k * 7)].Split(new String[] { ";" },
+                StringSplitOptions.RemoveEmptyEntries);
+
+                ////Laura////
+                Console.WriteLine("Preoperation " + preoperation);
+
+                double permnumofmeas=0;
+                string preplayers = "";
+
+                permuteOpplayers[k] = 0;
+
+                String[] operationstemp = new string [preoperation.Length];
+                for (int l= 0; l< preoperation.Length;l++ )
+                {
+                    operationstemp[l] = preoperation[l].Split(new String[] { "measure"},
+                    StringSplitOptions.RemoveEmptyEntries)[1].Trim();
+
+                    /// case of permutation will involve many players for one operation and automatically generated number of measurements
+                    if (operationstemp[l].Contains("Permute") == true)  
+                    {
+                        int permplayersnum =preoperation[l].Split(new String[] { "for player ", "for players ", "measure" },
+                        StringSplitOptions.RemoveEmptyEntries)[0].Replace(" and ", "").Trim().Length;
+                        int permbasesnum= getBetween(preoperation[l].Split(new String[] { "measure" },
+                         StringSplitOptions.RemoveEmptyEntries)[1].Replace("," ,"" ), "(",")" ).Length;
+
+                        ////Laura////
+                        Console.WriteLine(permplayersnum);
+                        Console.WriteLine(permbasesnum);
+
+
+                        permnumofmeas = Math.Pow(permbasesnum, permplayersnum);
+
+                        Console.WriteLine(permnumofmeas);
+
+                        preplayers = preplayers+ preoperation[l].Split(new String[] { "for player ","for players ", " measure " },
+                        StringSplitOptions.RemoveEmptyEntries)[0].Replace(" and ","").Trim();
+
+                        permuteOpplayers[k] = preoperation[l].Split(new String[] { "for player ", "for players ", " measure " },
+                        StringSplitOptions.RemoveEmptyEntries)[0].Replace(" and ", "").Trim().Length;
+
+                        
+
+                    }
+                    else {
+                        preplayers = preplayers + preoperation[l].Split(new String[] { "for player ", "for players ", " measure ", " " },
+                      StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    }
+                    
+                    
+                }
+                protocoloperations.Add(k, operationstemp);
+                protocolplayers.Add(k, preplayers.ToCharArray());
+
+                
+                
+                /////////// Update the number of measurement taking into consideration permute vs other functions
+                String[] numofmeas = pseudo[11 + (k * 7)].Split(new String[] { "number of measurements=", " " },
+                StringSplitOptions.RemoveEmptyEntries);
+
+                string numofmeasprac = pseudo[11 + (k * 7)].Split(new String[] { "number of measurements=", " " },
+                StringSplitOptions.RemoveEmptyEntries)[0];
+                measurementnumberPract.Add(k, Convert.ToInt32(numofmeasprac));
+
+                if (permnumofmeas !=0)
+                {
+                    measurementnumber.Add(k, Convert.ToInt32(permnumofmeas));
+
+                }
+                else
+                {
+                    int[] numberofmeasurements = Array.ConvertAll(numofmeas, int.Parse);
+                    measurementnumber.Add(k, numberofmeasurements[0]);
+                }
+                
+
+
+            }
+
+            ///////////////////// Parsing the interplay between different protocols /////
+            bool random = false;
+            bool sequence = false;
+
+            sequence = pseudo[6].Contains("seq");
+
+            if (numofProtocols > 1)
+            {
+                random = pseudo[6].Contains("rand");
+                
+               
+            }
+
+            ////////// number of Big iterations defined corresponding to the interplay and defined by the number after seq or rand ////
+            int bigiteration = 1;
+            bool bias = false;
+            bool pattern = false;
+            int[] securityparam = new int[numofProtocols];
+            List<int> seqparm  = new List<int>() ;
+            if (random==true)
+            {
+                String[] temprand = pseudo[6].Split(new String[] { "with" },
+                   StringSplitOptions.RemoveEmptyEntries);
+                bigiteration = Convert.ToInt32(temprand[0].Split(new String[] { "=", " ", "interplay:", "rand" },
+                   StringSplitOptions.RemoveEmptyEntries)[0]);
+                if (temprand.Length>0)
+                {
+                    bias = true;
+                    securityparam = Array.ConvertAll(temprand[1].Split(new String[] { "bias= ", " ", ":" },
+                   StringSplitOptions.RemoveEmptyEntries),int.Parse);
+                }
+                
+
+            }
+            if (sequence == true)
+            {
+                String[] temprand = pseudo[6].Split(new String[] { "with" },
+                   StringSplitOptions.RemoveEmptyEntries);
+                bigiteration =  Convert.ToInt32(pseudo[6].Split(new String[] { "=", " ", "interplay:", "seq" },
+                   StringSplitOptions.RemoveEmptyEntries)[0]); //numofProtocols*
+
+                if (temprand.Length > 0)
+                {
+                    if (pattern == true)
+                    {
+                        seqparm.AddRange(Array.ConvertAll(temprand[1].Split(new String[] { "pattern= ", " ", ",", "{", "}" },
+                        StringSplitOptions.RemoveEmptyEntries), int.Parse));
+
+                        bigiteration = bigiteration * seqparm.Count();
+                    }
+                }
+            }
+
+
+            /////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////// Start executing the Protocols/////////////////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+            Console.WriteLine("Protocol is starting...");
+
+            ////////////////////////////////////Activate Time tagger//////////////////////////////
+            TimeTagger t = TT.createTimeTagger();
+            t.reset();
+            //t.setTestSignal(1, true);///REMOVE IN REAL SCENARIO
+            //t.setTestSignal(2, true);///REMOVE IN REAL SCENARIO
+
+            for (int y = 0; y < delays.Length; y++)
+            {
+
+                t.setTriggerLevel(y + 1, trigger[y]);
+                t.setDelayHardware(y + 1, delays[y]);
+
+            }
+
+            int refreshTime = 10; // Refresh time between measurements
+
+            int execprotocol = 0; // the index of the protocol being executed
+            var randint = new Random();
+
+            Coincidences coinn = new Coincidences(t, coincidenceGroups: coincidence[execprotocol], coincidenceWindow: CoincidenceWindow[0]); /////why 500? is it nano or pico?
+            var vc = coinn.getChannels();
+            Counter counter = new Counter(t, channels: vc, binwidth: measurementduration[execprotocol] * (long)1e9, n_values: 1); // Simon bullshit 
+            for (int m = 0; m < bigiteration; m++) /// This iteration is related to the number indicated after seq or rand
+            {
+                ///////// Decide on the index of the executed protocol /////////////
+                if (random == true & bias==false) { execprotocol = randint.Next(0, numofProtocols); }
+                else if (random == true & bias == false) { execprotocol = RandomBiased(securityparam); }
+                else if (sequence == true & pattern==false ) { execprotocol = m % numofProtocols; }
+                else if (sequence == true & pattern == true) { execprotocol = (seqparm [m % (seqparm.Count())])-1; }
+
+                
+
+                 //Coincidence coinn = new Coincidence(t, channels: coincidence[execprotocol], coincidenceWindow: 500); /////why 500? is it nano or pico?
+                //Coincidences coinn = new Coincidences(t, coincidenceGroups: coincidence[execprotocol], coincidenceWindow: CoincidenceWindow[0]); /////why 500? is it nano or pico?
+                //var vc = coinn.getChannels();
+                //uncomment eventually Counter counter = new Counter(t, channels: vc, binwidth: measurementduration[execprotocol] * (long)1e9, n_values: 1); 
+
+
+                for (int j = 0; j < measurementnumber[m]; j++) //// Iteration correspends to number of measurement
+
+
+                {   ///////////////////////////// Deciding the basis of the current measurements - All players in one string/////////////
+                    string Base = "";
+                    Console.WriteLine(measurementnumberPract[execprotocol]);
+                    Console.WriteLine(protocoloperations[execprotocol]);
+                    for (int n = 0; n < protocoloperations[execprotocol].Length; n++)
+                    {
+                        Console.WriteLine(protocoloperations[execprotocol][n] + protocoloperations[execprotocol].Length);
+                        if (protocoloperations[execprotocol][n].Contains("Rand(") == true)
+                        {
+                            Base= Base+ Randomsequence(getBetween(protocoloperations[execprotocol][n].Replace(",", ""), "Rand(", ")").ToCharArray(), 1)[0];
+                            Console.WriteLine("I found Rand " + getBetween(protocoloperations[execprotocol][n].Replace(",", ""), "Rand(", ")"));
+                            
+                        }
+                        else if (protocoloperations[execprotocol][n].Contains("RandBias(") == true)
+
+                        {   String[] preRandbias = protocoloperations[execprotocol][n].Split(new String[] { "with" },
+                              StringSplitOptions.RemoveEmptyEntries);
+                            String[] prebiases = preRandbias[1].Split(new String[] { "bias=", ":", " " },
+                              StringSplitOptions.RemoveEmptyEntries);
+                            int[] biases = Array.ConvertAll(prebiases, int.Parse);
+                            //Begin Simon Bullshit
+                            char[] randbasesarr = getBetween(preRandbias[0].Replace(",", ""), "RandBias(", ")").ToCharArray();
+                            Console.WriteLine(randbasesarr.Length.ToString());
+                            var R = new Random();
+                            int r = R.Next(0, randbasesarr.Length);
+                            Base = Base + randbasesarr[r];
+                            //End Simon Bullshit
+                            //Base = Base + RandomBiasedsequence(getBetween(preRandbias[0].Replace(",", ""), "RandBias(", ")").ToCharArray(), biases.Length, biases)[0];
+                            Console.WriteLine("I found RandBias ");
+                        }
+                        else if (protocoloperations[execprotocol][n].Contains("Permute") == true)
+                        {
+                            Base = Base +Permutation(getBetween(protocoloperations[execprotocol][n].Replace(",", ""), "(", ")").ToCharArray(), permuteOpplayers[execprotocol], j+1);
+                            Console.WriteLine("I found Permute");
+                            
+                        }
+                        else
+                        {
+                            Base = Base+ protocoloperations[execprotocol][n].Trim()[0];
+                            Console.WriteLine("I found Nothing");
+                        }
+
+                        
+                    }
+
+ 
+                    Console.WriteLine("Protocol" + execprotocol.ToString() + "_" + "measurement_" + j.ToString() + "_" + string.Join("", Base));
+                    Console.WriteLine(Base + Base.Length);
+                   
+                    //////////////////////// Apply the basis to the the corresponding players //////////////////
+                    Parallel.For(0, Base.Length, o =>
+                    {
+                        //Console.WriteLine(protocolplayers[execprotocol][o].ToString()+ Base[o].ToString());
+                        Players[protocolplayers[execprotocol][o]].ChangeBasis(Base[o], basestemp);
+                        
+                    });
+
+                    ////////////////////// Create saving directory //////////////////////////
+                    
+                    if (!Directory.Exists(directories[execprotocol]))
+                    {
+                        Directory.CreateDirectory(directories[execprotocol]);
+                    }
+
+
+
+
+                    ///////////////// Recording the time bins measurements from the time tagger and register in txt //////
+                    ///
+                    datetime = DateTime.Now;
+                    using (FileStream stream = File.Create(directories[execprotocol] + "Bigiteration" +"_"+ m.ToString()+ "_" + string.Join("", Base) + "_" + j.ToString() + datetime.ToString("yyyyMMddHHmmss") + ".txt"))
+                    {
+                        using (StreamWriter writer = new StreamWriter(stream))
+
+                        {
+                            for (int i = 1; i <= measurementnumberPract[execprotocol]; i++) //measurementduration[execprotocol]
+                            {
+
+
+
+
+
+                                // startfor calls .clear and then integrates for the given duration. Afterwards .stop() is called which means .isRunning() == false
+                                counter.startFor(capture_duration: measurementduration[execprotocol] * (long)1e9 * 1);
+
+                                while (counter.isRunning())
+                                {
+                                    Thread.Sleep(10); //10 msec error think of it
+                                }
+
+                                var data = counter.getData();
+
+                                System.Console.WriteLine(data[0,0] + " counts " + data[1, 0] + " counts " + data[2, 0] + " counts ");
+                                //writer.WriteLine(data[0, 0]);
+                                for (int shit=0; shit< data.GetLength(0); shit++)
+                                {
+                                    writer.Write(data[shit, 0]+ " " );
+                                }
+                                writer.Write("\n");
+
+                                //using (Coincidence s = new Coincidence(t, channels: new int[] { 1, 2 }, coincidenceWindow: 100))
+                                //{
+                                //    var data = s.getChannels();
+                                //    System.Console.WriteLine(data[0] + " counts");
+                                //    writer.WriteLine(data[0] + " counts");
+                                //    Thread.Sleep(1);
+                                //}
+                                counter.clear();
+                            }
+
+                            writer.Close();
+                            
+                        }
+
+                        stream.Close();
+                    }
+                    Thread.Sleep(refreshTime);
+                   
+                }
+                //coinn = null;
+                //counter = null;
+                Console.WriteLine("--------------------------------"+ m.ToString());
+                Console.Clear();
+
+            }
+
+            
+            Console.Read();
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////strings manip/////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+            /// <summary>
+            /// It gets the string value between two substrings 
+            /// </summary>
+            /// <param name="strSource"></param>
+            /// <param name="strStart"></param>
+            /// <param name="strEnd"></param>
+            /// <returns></returns>
+        public static string getBetween(string strSource, string strStart, string strEnd)
+        {
+            if (strSource.Contains(strStart) && strSource.Contains(strEnd))
+            {
+                int Start, End;
+                Start = strSource.IndexOf(strStart, 0) + strStart.Length;
+                End = strSource.IndexOf(strEnd, Start);
+                return strSource.Substring(Start, End - Start);
+            }
+
+            return "";
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////Random number/////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        
+        private static RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider();
+
+        /// <summary>
+        /// A function taken from microsoft c# documentation calculating a random number in a range 
+        /// defined by the number of dice sides up to a cryptographic security 
+        /// </summary>
+        /// <param name="numberSides"></param>
+        /// <returns></returns>
+        public static byte RollDice(byte numberSides)
+        {
+            if (numberSides <= 0)
+                throw new ArgumentOutOfRangeException("numberSides");
+
+            // Create a byte array to hold the random value.
+            byte[] randomNumber = new byte[1];
+            do
+            {
+                // Fill the array with a random value.
+                rngCsp.GetBytes(randomNumber);
+            }
+            while (!IsFairRoll(randomNumber[0], numberSides));
+            // Return the random number mod the number
+            // of sides.  The possible values are zero-
+            // based, so we add one.
+            return (byte)((randomNumber[0] % numberSides) + 1);
+        }
+
+        private static bool IsFairRoll(byte roll, byte numSides)
+        {
+            // There are MaxValue / numSides full sets of numbers that can come up
+            // in a single byte.  For instance, if we have a 6 sided die, there are
+            // 42 full sets of 1-6 that come up.  The 43rd set is incomplete.
+            int fullSetsOfValues = Byte.MaxValue / numSides;
+
+            // If the roll is within this range of fair values, then we let it continue.
+            // In the 6 sided die case, a roll between 0 and 251 is allowed.  (We use
+            // < rather than <= since the = portion allows through an extra 0 value).
+            // 252 through 255 would provide an extra 0, 1, 2, 3 so they are not fair
+            // to use.
+            return roll < numSides * fullSetsOfValues;
+        }
+
+        /// <summary>
+        /// A function that takes randomly chars from a char array to build a new char array of specific length
+        /// </summary>
+        /// <param name="basislist"></param>
+        /// <param name="length"> length of the generated char array</param>
+        /// <returns></returns>
+        public static Char[] Randomsequence(char[] basislist, int length)
+        {
+            int sequence;
+            Char[] basissequence = new Char[length];
+            byte dicefaces = (byte) (basissequence.Length+1);
+            
+
+            for (int i = 0; i < length; i++)
+            {
+                sequence = Convert.ToInt32(RollDice(dicefaces) - 1);
+                basissequence[i] = basislist[sequence];
+            };
+
+            return basissequence;
+        }
+
+
+
+        /// <summary>
+        /// A function that takes randomly chars from a char array to build a new char array of specific length
+        /// </summary>
+        /// <param name="basislist"></param>
+        /// <param name="length"> length of the generated char array</param>
+        /// /// <param name=" weights"> the weights of the random toss
+        /// <returns></returns>
+        public static Char[] RandomBiasedsequence(char[] basislist, int length, int[] weights)
+        {
+            int sequence;
+            Char[] basissequence = new Char[length];
+            Console.WriteLine(length.ToString());
+
+
+            for (int i = 0; i < length; i++)
+            {
+                sequence = Convert.ToInt32(RandomBiased(weights));
+                basissequence[i] = basislist[sequence];
+            };
+
+            return basissequence;
+        }
+
+        ///////////// Random biased number //////
+        /// <summary>
+        /// This function generates random protocol indexes with the biases predefined for each protocol 
+        /// biases referred to as "weights" , biases should be defined respecting the order of the protocols
+        /// </summary>
+        /// <param name="weights"></param>
+        /// <returns></returns>
+        public static int RandomBiased(int[] weights)
+        {
+            int[] hoppa = new int[weights.Length];
+            for (int j =0; j<weights.Length;j++) { hoppa[j] = weights[j]; }
+            Array.Sort(hoppa);
+
+            
+            var R = new Random();
+            int r = R.Next(0,100);
+            int outindex=111;
+            
+            int temp = 0;
+
+            Dictionary<int, int> repeated = new Dictionary<int, int> ();
+            Dictionary<int, List<int>> repeatedindex = new Dictionary<int, List<int>>();
+            int value = 0;
+            int rep = 1;
+
+            for (int k=0; k<hoppa.Length; k++)
+
+            {     if (k>0 & hoppa[k]==value)
+                {
+                    repeated[hoppa[k]] = rep + 1;
+                }
+                else { rep = 1; repeated[hoppa[k]] = rep; }
+
+                value = hoppa[k];
+            }
+            foreach (KeyValuePair<int,int> kvp in repeated)
+            {   repeatedindex.Add(kvp.Key, new List<int>());
+                for (int k = 0; k < weights.Length; k++)
+
+                {
+                    if (weights[k] == kvp.Key)
+                    {
+
+                        repeatedindex[kvp.Key].Add(k);
+                    }
+                }
+            }
+
+            for (int i=weights.Length-1; i>=0; i--)
+            {
+                
+                if (r <= temp+hoppa[i] & r>=temp) 
+                {   if (repeated[hoppa[i]] == 1)
+                    { outindex = Array.IndexOf(weights, hoppa[i]); }
+
+                   else
+                    {
+                        int rrr = R.Next(0, repeated[hoppa[i]]);
+                        outindex = Array.IndexOf(weights, hoppa[i], repeatedindex[hoppa[i]][rrr]);
+                    }
+                
+                }
+                temp = temp + hoppa[i];
+                
+            }
+
+            
+            return outindex;
+
+        }
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////Permutation /////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// This function calculates a specific permutation of a char array 
+        /// It takes the char array and the length of the permutation and the index of the desired permutation
+        /// This index of permutation should correspond to the measurement number in the upper code
+        /// And the measurement number cannot exceed the max number of permutations defined by : basislist.Length^ strlength
+        /// </summary>
+        /// <param name="basislist"></param>
+        /// <param name="strlength"></param>
+        /// <param name="permutnumber"></param>
+        /// <returns></returns>
+        public static string Permutation (Char[] basislist, int strlength, int permutnumber)
+        {
+            int charlen = basislist.Length;
+            Char[] perm= new Char[strlength];
+            double permnumber = Convert.ToDouble(permutnumber);
+            
+            for (int i= 0; i<strlength;i++)
+            {
+                double waa2 = permnumber / (Math.Pow(charlen, (strlength - 1 - i)));
+                double ehe2= permnumber % (Math.Pow(charlen, (strlength - 1 - i)));
+                if ((waa2>=1 & ehe2==0) || i == strlength - 1)
+                {
+                    waa2 = waa2 - 1;
+                    
+                }
+                
+                
+                 perm[i] = basislist[(int) Math.Floor(waa2)]; 
+                
+                
+                permnumber = permnumber - (Math.Floor(waa2) * (Math.Pow(charlen, (strlength - 1 - i))));
+                //Console.WriteLine(permnumber);
+            }
+
+            string x = string.Join("",perm);
+            return x;
+        }
+
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        /////////////////////////////Core classes /////////////////////////////////////////////
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+        /// <summary>
+        /// Player object controls one or multiple measurement Stations.
+        /// He/She can control it to change measurement bases. 
+        /// In the main program, we mostly use Player object to manipulate the different qbits.
+        /// Measurement Station should not be used alone.
+        /// </summary>
+        public class Player
+        {
+            /// <summary>
+            /// Number of measurement stations controled by the player.
+            /// </summary>
+            private int m_stationNumber;
+            public int StationNumber
+            {
+                get { return m_stationNumber; }
+            }
+
+            /// <summary>
+            /// List of the measurement stations controled by the player.
+            /// </summary>
+            private List<MeasStation> m_stations;
+            public List<MeasStation> Stations
+            {
+                get { return m_stations; }
+            }
+
+            /// <summary>
+            /// Controls one or multiple measurement Stations.
+            /// </summary>
+            /// <param name="stationNumber">Number of stations controled by the player</param>
+            /// <param name="Stations">List of stations controled by the player</param>
+            public Player(int stationNumber, List<MeasStation> Stations)
+            {
+                this.m_stationNumber = stationNumber;
+                this.m_stations = Stations;
+            }
+
+            /// <summary>
+            /// This is a modified change basis that depends on the definition of each basis angle in the dictionary
+            /// </summary>
+            /// <param name="bases"></param>
+            /// <param name="basestemp"></param>
+            public void ChangeBasis(char bases, Dictionary<char, decimal[]> basestemp)
+            {
+                Parallel.For(0, this.m_stationNumber, qbit =>
+                {
+                    this.m_stations[qbit].ChangeBasis(basestemp[bases][qbit]);
+                });
+                Thread.Sleep(50);
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Object containing two motors, linked to a HWP and a QWP.
+        /// One can rotate these WP to change the basis of measurement on one Qbit.
+        /// The characteristic angles can be set in a text file, or at the creation of the object.
+        /// </summary>
+        public class MeasStation
+        {
+
+            private Motor m_wp;
+
+
+            /// <summary>
+            /// Position of the QWP axis, relatively to the Motor's zero.
+            /// </summary>
+            private decimal m_wpZero;
+            public decimal WPZero
+            {
+                get { return m_wpZero; }
+                set
+                {
+                    m_wpZero = value;
+                    this.m_wp.Zero = m_wpZero;
+                }
+            }
+
+            /// <summary>
+            /// Use in priority the other function, and set the parameters in a text file. 
+            /// </summary>
+            public MeasStation(string wpSerialNo, decimal wpZero = 0m)  ////////////////////////m ChshAdded 
+            {
+                this.m_wp = new Motor(wpSerialNo, wpZero);
+
+                //this.m_rotation = rotation;
+            }
+
+            /// <summary>
+            /// To use in priority to generate a MeasStation object
+            /// </summary>
+            /// <param name="configFile">Path of the config file, see readme.</param>
+            public MeasStation(string configFile)
+            {
+                string[] configLines = System.IO.File.ReadAllLines(configFile);
+                string wpSerialNo = configLines[0];//Serial number of the HWP's motor
+                decimal wpZero = Convert.ToDecimal(configLines[1]);//Angle of the HWP's axis
+
+
+                //Creation of Motors objects and other attributes.
+                this.m_wp = new Motor(wpSerialNo, wpZero);
+
+                //this.m_rotation = rotation;
+            }
+
+            /// <summary>
+            /// Change the measurement basis, accordisng to the angles of HWP and QWP
+            /// </summary>
+            /// <param name="wpAngle">Angle of the QWP</param>
+            public void ChangeBasis(decimal wpAngle)
+            {
+                this.m_wp.GoTo(wpAngle);
+                return;
+            }
+
+
+            /// <summary>
+            /// Connects, enables, homes, moves a Thorlabs Motor.
+            /// </summary>
+            public class Motor
+            {
+                /// <summary>
+                /// Used to check that a motor move is cohfhgdhshshampleted
+                /// </summary>
+                private static bool _taskComplete;
+                private static ulong _taskID;
+
+                /// <summary>
+                /// Hardware object
+                /// </summary>
+                private KCubeBrushlessMotor m_device;
+
+                /// <summary>
+                /// Hardware serial number, see on the KCube.
+                /// </summary>
+                private string m_serialNo;
+                public string SerialNo
+                {
+                    get { return m_serialNo; }
+                    set { m_serialNo = value; }
+                }
+
+                /// <summary>
+                /// Position of the WP axis, relatively to the Motor's home.
+                /// </summary>
+                private decimal m_zero;
+                public decimal Zero
+                {
+                    get { return m_zero; }
+                    set { m_zero = value; }
+                }
+
+                /// <summary>
+                /// Connects, enables, homes, moves a Thorlabs Motor.
+                /// </summary>
+                /// <param name="serialNo">Serial number of the corresponding KCube</param>
+                /// <param name="zero">Position of the WP axis, relatively to the Motor's home.</param>
+                public Motor(string serialNo, decimal zero = 0m)
+                {
+                    try
+                    {
+                        // Tell the device manager to get the list of all devices connected to the computer
+                        DeviceManagerCLI.BuildDeviceList();
+                    }
+                    catch (Exception ex)
+                    {
+                        // an error occurred - see ex for details
+                        Console.WriteLine("Exception raised by BuildDeviceList {0}", ex);
+                        Console.ReadKey();
+                        return;
+                    }
+
+                    // get available KCube Brushless Motor and check our serial number is correct
+                    List<string> serialNumbers = DeviceManagerCLI.GetDeviceList(KCubeBrushlessMotor.DevicePrefix);
+                    if (!serialNumbers.Contains(serialNo))
+                    {
+                        // the requested serial number is not a KBD101 or is not connected
+                        Console.WriteLine("{0} is not a valid serial number", serialNo);
+                        Console.ReadKey();
+                        return;
+                    }
+
+                    this.m_serialNo = serialNo;
+                    this.m_zero = zero;
+                    this.m_device = KCubeBrushlessMotor.CreateKCubeBrushlessMotor(serialNo);
+                    if (m_device == null)
+                    {
+                        // an error occured
+                        Console.WriteLine("{0} is not a KCubeBrushlessMotor", serialNo);
+                        Console.ReadKey();
+                        return;
+                    }
+
+                    // open a connection to the device.
+                    try
+                    {
+                        Console.WriteLine("Opening device {0}", serialNo);
+                        m_device.Connect(serialNo);
+                    }
+                    catch (Exception exc)
+                    {
+                        if (!exc.Message.Contains("ThorlabsSettingsOverrides.xml"))
+                        {
+                            // connection failed
+                            Console.WriteLine("Failed to open device {0}", serialNo);
+                            Console.ReadKey();
+                            return;
+                        }
+                    }
+                    // wait for the device settings to initialize
+                    if (!m_device.IsSettingsInitialized())
+                    {
+                        try
+                        {
+                            m_device.WaitForSettingsInitialized(5000);
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("Settings failed to initialize");
+                        }
+                    }
+                    // start the device polling
+                    m_device.StartPolling(250);
+                    // needs a delay so that the current enabled state can be obtained
+                    Thread.Sleep(500);
+                    // enable the channel otherwise any move is ignored 
+                    m_device.EnableDevice();
+                    // needs a delay to give time for the device to be enabled
+                    Thread.Sleep(500);
+
+                    // call LoadMotorConfiguration on the device to initialize the DeviceUnitConverter object required for real world unit parameters
+                    MotorConfiguration motorSettings = m_device.LoadMotorConfiguration(serialNo);
+                    KCubeBrushlessMotorSettings currentDeviceSettings = m_device.MotorDeviceSettings as KCubeBrushlessMotorSettings;
+
+                    // display info about device
+                    DeviceInfo deviceInfo = m_device.GetDeviceInfo();
+                    //Homing Motor
+                    this.GoHome();
+                    Console.WriteLine("Device {0} Ready to operate.", this.m_serialNo);
+                }
+
+                ~Motor()
+                {
+                    Console.WriteLine("Device destroyed.");
+                }
+
+                /// <summary>
+                /// Checks if a task is over, ex : homing
+                /// </summary>
+                /// <param name="taskID">task</param>
+                public static void CommandCompleteFunction(ulong taskID)
+                {
+                    if ((_taskID > 0) && (_taskID == taskID))
+                    {
+                        _taskComplete = true;
+                    }
+                }
+
+                /// <summary>
+                /// Homes the motor
+                /// </summary>
+                public void GoHome()
+                {
+                    Console.WriteLine("Homing device {0}", this.m_serialNo);
+                    _taskComplete = false;
+                    _taskID = this.m_device.Home(CommandCompleteFunction);
+                    while (!_taskComplete)
+                    {
+                        Thread.Sleep(500);
+                    }
+                    Console.WriteLine("Device {0} Homed", this.m_serialNo);
+                }
+
+                /// <summary>
+                /// Moves the motor to the given position, in degrees, relatively to the WP's axis.
+                /// </summary>
+                /// <param name="position">in degrees, relatively to the WP's axis.</param>
+                public void GoTo(decimal position)
+                {
+                    this.m_device.MoveTo(((position + this.m_zero) % 360 + 360) % 360, 60000);
+                }
+            }
+        }
+    }
+}
+

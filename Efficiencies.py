@@ -46,13 +46,14 @@ get_channels_eff() returns the normalized efficiency of each channel
 Not all channels have the same efficiency for various reasons
 We need to be able to characterize each efficiency to be able to correct the number of counts_array
 """
-def get_channels_eff(datafiles, directory):
+def get_channels_eff(datafiles, column_start, column_stop, directory):
     os.chdir(directory)
     eff=np.array(['zz', 'za', 'az', 'aa']) ### 'a' refers to '-z'
-    efficiencies_aux=np.zeros((len(eff), 4), dtype=float)
+    efficiencies_aux=np.zeros((len(eff), column_stop-column_start), dtype=float)
     
     ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
-    efficiencies_aux=select_lines_in_file(4, 8, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
+    efficiencies_aux=select_lines_in_file(column_start, column_stop, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
+    print(efficiencies_aux)
     """
     Each column (channel) will be turned into the sum over the lines (that correspond to different measurement basis)
     When normalized we end up with a an array with the relative channel efficiencies in the order we saved the data
@@ -64,13 +65,13 @@ def get_channels_eff(datafiles, directory):
     return(efficiencies)
 
 ### set_raw_counts() returns an array with the counts recorded in the columns 4:8 of the datafile (where the coincidence counts are written)
-def set_raw_counts(datafiles, qubit_number, directory):
+def set_raw_counts(datafiles, qubit_number, column_start, column_stop, directory):
     os.chdir(directory)
     counts_aux=np.zeros((2**qubit_number,3**qubit_number), dtype=float)
 
     bases=np.array(['xx', 'xy', 'xz', 'yx', 'yy', 'yz', 'zx', 'zy', 'zz'])#, ## order: D, L, H
 
-    counts=select_lines_in_file(4, 8, datafiles, np.shape(counts_aux), bases, os.getcwd())
+    counts=select_lines_in_file(column_start, column_stop, datafiles, np.shape(counts_aux), bases, os.getcwd())
 
     """
     Just ordering the array such that it matches with the covention counts_aux[x] (this changes depending on how we save data):
@@ -78,6 +79,7 @@ def set_raw_counts(datafiles, qubit_number, directory):
     - x=1: HV
     - x=2: VH
     - x=3: VV
+    If we change this order we need to do the same in correct_counts_with_channels_eff in projectorcounts.py
     """
-    counts_aux=counts[[2,3,0,1]]
+    counts_aux=counts[[0,1,2,3]]
     return(counts_aux)

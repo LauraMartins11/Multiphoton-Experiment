@@ -30,9 +30,11 @@ PROJECTORS={"d": np.array([1,1])/np.sqrt(2),
             "v": np.array([0,1])}
 
 ### Uncertainty on the WP
-SIGMA_HWP_ARYA=0.04*np.pi/180
-SIGMA_QWP_ARYA=0.1*np.pi/180
-SIGMA_HWP_BRAN=0
-SIGMA_QWP_BRAN=0
+SIGMA_HWP_ARYA=0.01*np.pi/180
+SIGMA_QWP_ARYA=0.12*np.pi/180
+SIGMA_HWP_BRAN=0.01*np.pi/180
+SIGMA_QWP_BRAN=0.17*np.pi/180
 SIGMA_HWP_CERSEI=0.01*np.pi/180
-SIGMA_QWP_CERSEI=0.11*np.pi/180
+SIGMA_QWP_CERSEI=0.14*np.pi/180
+SIGMA_HWP_DANY=0.09*np.pi/180
+SIGMA_QWP_DANY=0.04*np.pi/180
