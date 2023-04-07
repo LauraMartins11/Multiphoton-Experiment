@@ -36,7 +36,7 @@ class Tomography:
     procedures, see the sub-class MaximumLikelihoodTomography.
     """
 
-    def __init__(self, qbit_number, xp_counts, working_dir):
+    def __init__(self,qbit_number,xp_counts,working_dir):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
@@ -46,6 +46,7 @@ class Tomography:
         """
         self.qbit_number = qbit_number
         self.xp_counts = xp_counts
+
         self.working_dir = Path(working_dir)
         os.chdir(self.working_dir)
         print('Direct Inversion Tomography Initialized')
@@ -88,16 +89,19 @@ class LRETomography():
     Likelihood estimation.
     """
 
-    def __init__(self, qbit_number, xp_counts, working_dir=Path(__file__).parent):
+    def __init__(self, qbit_number,xp_counts,xp_counts_2_emissions,working_dir=Path(__file__).parent):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
         - 'xp_counts_array': array of experimental counts that can be passed
         as an argument to initialize an object of class XPCounts
+        xp_counts_2-emission_array': array of experimental counts of the double emissions that can be passed
+        as an argument to initialize an object of class XPCounts
         - 'working_dir' : directory to save and load data
         """
         self.qbit_number = qbit_number
-        self.xp_counts = XPCounts(xp_counts, self.qbit_number)
+        self.xp_counts = XPCounts(xp_counts,xp_counts_2_emissions,self.qbit_number)
+        self.xp_counts_2_emissions = XPCounts(xp_counts,xp_counts_2_emissions,self.qbit_number)
         self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
@@ -139,14 +143,14 @@ class LRETomography():
         #method, from experimental data.
         self.pseudo_state = self.LREstate()
 
-    def run(self, print_nc=False, correct_eff=None):
+    def run(self,correct_eff=None, correct_eff2=None,print_nc=False, ):
         """
         Runs the pseudo tomography to get generate a state out of the
         experimental data, using the LRE method and fast maximum likelihood
         estimation."""
 
         if correct_eff is not None:
-            self.xp_counts.correct_counts_with_channels_eff(correct_eff)
+            self.xp_counts.correct_counts_with_channels_eff(correct_eff,correct_eff2)
             print("I'm correcting efficiencies")
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis

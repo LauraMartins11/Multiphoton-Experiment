@@ -30,7 +30,6 @@ class XPCounts:
     Class used to interact with the experimental numbers of event detected
     when simultaneously measuring the photons on different eigenvectors of
     tensor products of Pauli operators.
-
     Initialisation Arguments:
     - 'qbit_number' : number of qbits
     - 'counts_array' : is an array of shape (3**qbit_number,2**qbit_number)
@@ -38,11 +37,16 @@ class XPCounts:
     Each line corresponds to a Pauli measurement basis
     Each column correspond to a eigenvector of the Pauli operator, on which
     we performed the measurement.
+    - 'counts_2_emissions_array' : is an array of shape (3**qbit_number,2**qbit_number)
+    containing the numbers of of coincidence events of the double emissions for each
+    Each line corresponds to a Pauli measurement basis
+    Each column correspond to a eigenvector of the Pauli operator, on which
+    we performed the measurement.
     """
 
-
-    def __init__(self, counts_array, qbit_number):
+    def __init__(self,counts_array,counts_array_2_emissions,qbit_number):
         self.counts_array = counts_array
+        self.counts_array_2_emissions = counts_array_2_emissions
         self.qbit_number = qbit_number # int(np.log2(np.shape(self.counts_array)[1]))
 
         self.base_2 = 2**np.linspace(0,self.qbit_number-1,self.qbit_number)
@@ -118,13 +122,30 @@ class XPCounts:
                 self.total_counts_array,(
                         2**self.qbit_number,3**self.qbit_number)).transpose()
 
-    def correct_counts_with_channels_eff(self, channel_eff):
+    def correct_counts_with_channels_eff(self,channel_eff,channel_eff_2_emissions):
         for w in range(3**self.qbit_number):
             ### The ordering of the channel_eff matches with the covention: 0: HH; 1: HV; 2: VH; 3: VV(this changes depending on how we save data)
             ### If we change this order we need to do the same in set_raw_counts in efficiencies.py
+            ### Correcting with the channel_eff
             self.counts_array[w] /= channel_eff[[0,1,2,3]].astype(float)
+            self.counts_array_2_emissions[w] /= channel_eff_2_emissions[[0,1,2,3]].astype(float)
+            ### Applyibg the correction of the double emission with respect of the order of the pseudo code : {123}, {134}, {234}, {124}
+            ### {13} = {13} - {123} - {134} ; {14} = {14} - {124} - {134}; {23} = {23} - {123} - {234}; {24} = {24} - {234} - {124}
+        print(self.counts_array)
+        print(self.counts_array_2_emissions)
+        for z in range(3**self.qbit_number):
+            self.counts_array[z,0] = self.counts_array[z,0]-(self.counts_array_2_emissions[z,0]+self.counts_array_2_emissions[z,1])
+            print(self.counts_array[z,0])
+            self.counts_array[z,1] = self.counts_array[z,1]-(self.counts_array_2_emissions[z,1]+self.counts_array_2_emissions[z,3])
+            print(self.counts_array[z,1])
+            self.counts_array[z,2] = self.counts_array[z,2].astype(float)-(self.counts_array_2_emissions[z,1]+self.counts_array_2_emissions[z,2])
+            print(self.counts_array[z,2])
+            self.counts_array[z,3] = self.counts_array[z,3].astype(float)-(self.counts_array_2_emissions[z,2]+self.counts_array_2_emissions[z,3])
+            print(self.counts_array[z,3])
+
         ### Counts need to be integers
         self.counts_array = np.round(self.counts_array)
+        
 
 
 class TheoreticalCounts(XPCounts):
