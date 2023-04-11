@@ -131,21 +131,15 @@ class XPCounts:
             self.counts_array_2_emissions[w] /= channel_eff_2_emissions[[0,1,2,3]].astype(float)
             ### Applyibg the correction of the double emission with respect of the order of the pseudo code : {123}, {134}, {234}, {124}
             ### {13} = {13} - {123} - {134} ; {14} = {14} - {124} - {134}; {23} = {23} - {123} - {234}; {24} = {24} - {234} - {124}
-        print(self.counts_array)
-        print(self.counts_array_2_emissions)
         for z in range(3**self.qbit_number):
             self.counts_array[z,0] = self.counts_array[z,0]-(self.counts_array_2_emissions[z,0]+self.counts_array_2_emissions[z,1])
-            print(self.counts_array[z,0])
             self.counts_array[z,1] = self.counts_array[z,1]-(self.counts_array_2_emissions[z,1]+self.counts_array_2_emissions[z,3])
-            print(self.counts_array[z,1])
-            self.counts_array[z,2] = self.counts_array[z,2].astype(float)-(self.counts_array_2_emissions[z,1]+self.counts_array_2_emissions[z,2])
-            print(self.counts_array[z,2])
-            self.counts_array[z,3] = self.counts_array[z,3].astype(float)-(self.counts_array_2_emissions[z,2]+self.counts_array_2_emissions[z,3])
-            print(self.counts_array[z,3])
+            self.counts_array[z,2] = self.counts_array[z,2]-(self.counts_array_2_emissions[z,1]+self.counts_array_2_emissions[z,2])
+            self.counts_array[z,3] = self.counts_array[z,3]-(self.counts_array_2_emissions[z,2]+self.counts_array_2_emissions[z,3])
 
         ### Counts need to be integers
         self.counts_array = np.round(self.counts_array)
-        
+        print(self.counts_array)
 
 
 class TheoreticalCounts(XPCounts):
