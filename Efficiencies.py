@@ -53,7 +53,7 @@ def get_channels_eff(datafiles, column_start, column_stop, directory):
     
     ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
     efficiencies_aux=select_lines_in_file(column_start, column_stop, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
-    print(efficiencies_aux)
+
     """
     Each column (channel) will be turned into the sum over the lines (that correspond to different measurement basis)
     When normalized we end up with a an array with the relative channel efficiencies in the order we saved the data
