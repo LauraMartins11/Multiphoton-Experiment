@@ -36,6 +36,9 @@ def fid(dm, target):
         return (np.trace(scipy.linalg.sqrtm(scipy.linalg.sqrtm(target)@dm@scipy.linalg.sqrtm(target))))**2/(np.trace(target)*np.trace(dm))
     else:
         return np.transpose(np.conjugate(target))@dm@target
+    
+def tensor_product(state1,state2):
+    return(np.kron(state1,state2))
 
 
 class DensityMatrix:
@@ -63,3 +66,40 @@ class DensityMatrix:
 
     def __repr__(self):
         return repr(self.state)
+    
+    def fock_basis(self,qbit_number):
+        fock_state = []
+        fock_state = self.state
+        self.state = np.zeros((((qbit_number)**4),(qbit_number**4)),dtype = complex)
+        if len(fock_state) < 5 :
+            for w in range(0,4):
+                for i in range (0,4):
+                    self.state[w*3+3,i*3+3] = fock_state[w,i]
+        else :
+                self.state = fock_state
+
+class GHZ: 
+
+    def __init__(self,state1,state2):
+        self.fock_state1 = state1
+        self.fock_state2 = state2
+
+    def GHZ_before_BS(self):
+        self.GHZ_state_before_BS = tensor_product(self.fock_state1,self.fock_state2)
+        
+    
+    def fidelity(self, target):
+        shape=np.shape(target)
+        if (len(shape)>1):
+            return (np.trace(scipy.linalg.sqrtm(scipy.linalg.sqrtm(self.GHZ_state)@target@scipy.linalg.sqrtm(self.GHZ_state))))**2/(np.trace(self.GHZ_state)*np.trace(target))
+        else:
+            return np.transpose(np.conjugate(target))@self.GHZ_state@target
+        
+    def BeamSplitter(self):
+        X = np.array([[0,1],[1,0]])
+        Z = np.array([[1,0],[0,-1]])
+        PBS = np.bmat([[np.diag([1,1]),np.zeros((2,2))],[np.zeros((2,2)),X@Z]])
+        swap = np.array([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])
+        PBS_swap = swap@PBS
+        Beamsplitter = tensor_product(np.diag([1,1]),tensor_product(PBS_swap,np.diag([1,1])))
+        self.GHZ_state = Beamsplitter@self.GHZ_state_before_BS

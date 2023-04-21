@@ -167,6 +167,9 @@ class LRETomography():
         self.quantum_state.set_density_matrix(self.pseudo_state)
         self.state=DensityMatrix(self.quantum_state.get_density_matrix())
 
+    def fock(self):
+        self.state.fock_basis(self.qbit_number)
+
 
     def permutation_elements(self, elements):
         permuted=[]

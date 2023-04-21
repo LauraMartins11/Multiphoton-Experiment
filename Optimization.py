@@ -62,6 +62,18 @@ class FidelityResults(Results):
     @property
     def optimized_state(self):
         return self.data_points.apply_unitary(self.u)
+    
+    def Density(self,fock_state):
+        return(DensityMatrix(fock_state))
+     
+    def fock_basis(self,fock_state,qbit_number):
+        
+        fock_state_denisty = np.zeros((((qbit_number)**4),(qbit_number**4)),dtype = complex)
+        for w in range(0,4):
+            for i in range (0,4):
+                fock_state_denisty[w*3+3,i*3+3] = fock_state[w,i]
+        return(DensityMatrix(fock_state_denisty))
+    
 
 
 """
