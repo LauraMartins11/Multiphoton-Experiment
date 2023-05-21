@@ -105,19 +105,30 @@ class LRETomography():
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
         os.chdir(self.working_dir)
-
+    
     def get_theta_LS(self):
         """Function to get the vector of coordinates of the density matrix
         in the basis of Pauli operators."""
-        X = np.load(self.working_dir / 'SavedVariables' / f'X_matrix{self.qbit_number}.npy')
+        X = np.load(self.working_dir / 'SavedVariables' / f'X_matrix{self.qbit_number}trial.npy')
         invXtX_matrix = np.load(
-                self.working_dir / 'SavedVariables' / f'invXtX_matrix{self.qbit_number}.npy')
+                self.working_dir / 'SavedVariables' / f'invXtX_matrix{self.qbit_number}trial.npy')
         Y = self.xp_counts.get_xp_probas() - 1/2**self.qbit_number
+
         XtY = np.sum(X*np.resize(Y,(4**self.qbit_number - 1,
                                     3**self.qbit_number,2**self.qbit_number
                                     )).transpose((1,2,0)),axis = (0,1))
         return np.dot(invXtX_matrix,XtY)
 
+    # def get_theta_LS(self):
+    #     """Function to get the vector of coordinates of the density matrix
+    #     in the basis of Pauli operators."""
+    #     X = np.load(self.working_dir / 'SavedVariables' / f'X{self.qbit_number}.npy')
+    #     Y = (self.xp_counts.get_xp_probas() - 1/2**self.qbit_number)
+    #     print("shape", np.shape(X))
+    #     print('X', np.round(X,3))
+        
+    #     return np.dot(X,Y)
+    
     def LREstate(self):
         """Function that calculates an approximation of the density matrix,
         using the linear regression estimation method"""
@@ -598,3 +609,4 @@ class GeneticTomography(LRETomography):
 
 #    def __init__(self, densitymatrix, working_dir):
 #        self.densitymatrix=densitymatrix
+# %%
