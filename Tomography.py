@@ -110,13 +110,17 @@ class LRETomography():
         """Function to get the vector of coordinates of the density matrix
         in the basis of Pauli operators."""
         X = np.load(self.working_dir / 'SavedVariables' / f'X_matrix{self.qbit_number}.npy')
+
         invXtX_matrix = np.load(
                 self.working_dir / 'SavedVariables' / f'invXtX_matrix{self.qbit_number}.npy')
+
         Y = self.xp_counts.get_xp_probas() - 1/2**self.qbit_number
+
         XtY = np.sum(X*np.resize(Y,(4**self.qbit_number - 1,
                                     3**self.qbit_number,2**self.qbit_number
                                     )).transpose((1,2,0)),axis = (0,1))
         return np.dot(invXtX_matrix,XtY)
+
 
     def LREstate(self):
         """Function that calculates an approximation of the density matrix,
@@ -214,14 +218,15 @@ class LRETomography():
 
 
     def simulate_new_counts_with_uncertainties(self, players):
-        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis   
+        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis 
+        
         lines, columns = 3**self.qbit_number,2**self.qbit_number
 
         self.xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         self.players_list=self.players_init(players)
 
-        self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
-        self.players_list_2_emissions=self.players_init(players)
+        #self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
+        #self.players_list_2_emissions=self.players_init(players)
 
         proj=self.permutation_elements(["h","v"])
         proj_basis=self.permutation_elements(["x","y","z"])
@@ -238,7 +243,7 @@ class LRETomography():
 
         for k in range(lines):
             N_total=np.sum(self.xp_counts.counts_array[k])
-            N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
+            #N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
             for l in range(columns):
 
                 angle_hwp=[]
@@ -282,10 +287,10 @@ class LRETomography():
 
                 if np.imag(p)<1e-13:
                     self.xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
-                    self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
+                    #self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
                 else:
                     print('You are getting complex probabilities')
-        return self.xp_counts_err + self.xp_counts_err_2_emissions
+        return self.xp_counts_err #+ self.xp_counts_err_2_emissions
 
     def calculate_dm_from_simulated_counts(self, players):
 
@@ -316,7 +321,7 @@ class LRETomography():
             print("Optimizing the fidelity between input and target up to a unitary")
 
             for i in range(error_runs):
-                result=opt.optimize(self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
+                result=opt.optimize(int(self.qbit_number),self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
 
                 self.Us.append(result.u)
 

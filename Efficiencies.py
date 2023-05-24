@@ -39,6 +39,7 @@ def select_lines_in_file(start_line, finish_line, datafiles, shape, bases, direc
                 fields = line.split()
                 for iter, field in enumerate(fields[start_line:finish_line]):
                     array[iter][w]=float(field)
+                    
     return(array)
 
 """
@@ -46,9 +47,28 @@ get_channels_eff() returns the normalized efficiency of each channel
 Not all channels have the same efficiency for various reasons
 We need to be able to characterize each efficiency to be able to correct the number of counts_array
 """
-def get_channels_eff(datafiles, column_start, column_stop, directory):
+def get_channels_eff(datafiles,qubit_number, column_start, column_stop, directory):
     os.chdir(directory)
-    eff=np.array(['zz', 'za', 'az', 'aa']) ### 'a' refers to '-z'
+    letters = ['z', 'a']
+    eff = []
+
+    for i in letters:
+        if qubit_number == 1:
+            base = i 
+            eff.append(base)
+        for j in letters:
+            if qubit_number == 2:
+                base = i + j
+                eff.append(base)
+            for k in letters:
+                if qubit_number == 3:
+                    base = i + j + k 
+                    eff.append(base)
+                for l in letters:
+                    if qubit_number == 4:
+                        base = i + j + k + l
+                        eff.append(base)
+
     efficiencies_aux=np.zeros((len(eff), column_stop-column_start), dtype=float)
     
     ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
@@ -68,8 +88,27 @@ def get_channels_eff(datafiles, column_start, column_stop, directory):
 def set_raw_counts(datafiles, qubit_number, column_start, column_stop, directory):
     os.chdir(directory)
     counts_aux=np.zeros((2**qubit_number,3**qubit_number), dtype=float)
+    
+    
+    letters = ['x', 'y', 'z']
+    bases = []
 
-    bases=np.array(['xx', 'xy', 'xz', 'yx', 'yy', 'yz', 'zx', 'zy', 'zz'])#, ## order: D, L, H
+    for i in letters:
+        if qubit_number == 1:
+            base = i 
+            bases.append(base)
+        for j in letters:
+            if qubit_number == 2:
+                base = i + j
+                bases.append(base)
+            for k in letters:
+                if qubit_number == 3:
+                    base = i + j + k 
+                    bases.append(base)
+                for l in letters:
+                    if qubit_number == 4:
+                        base = i + j + k + l
+                        bases.append(base)
 
     counts=select_lines_in_file(column_start, column_stop, datafiles, np.shape(counts_aux), bases, os.getcwd())
 
@@ -81,5 +120,19 @@ def set_raw_counts(datafiles, qubit_number, column_start, column_stop, directory
     - x=3: VV
     If we change this order we need to do the same in correct_counts_with_channels_eff in projectorcounts.py
     """
-    counts_aux=counts[[0,1,2,3]]
-    return(counts_aux)
+    if qubit_number == 1:
+        counts_aux=counts[[0,1]]
+        return(counts_aux)
+    if qubit_number == 2:
+        counts_aux=counts[[0,1,2,3]]
+        return(counts_aux)
+    if qubit_number == 3:
+        counts_aux=counts[[0,1,2,3,4,5,6,7]]
+        return(counts_aux)
+    if qubit_number == 4:
+        counts_aux=counts[[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]
+        return(counts_aux)
+    
+
+    
+    

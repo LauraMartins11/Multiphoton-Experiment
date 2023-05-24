@@ -77,7 +77,6 @@ class DensityMatrix:
                     self.state[w*3+3,i*3+3] = fock_state[w,i]
         else :
                 self.state = fock_state
-
 class GHZ: 
 
     def __init__(self,state1,state2):
