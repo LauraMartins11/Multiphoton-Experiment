@@ -110,12 +110,9 @@ class LRETomography():
         """Function to get the vector of coordinates of the density matrix
         in the basis of Pauli operators."""
         X = np.load(self.working_dir / 'SavedVariables' / f'X_matrix{self.qbit_number}.npy')
-
         invXtX_matrix = np.load(
                 self.working_dir / 'SavedVariables' / f'invXtX_matrix{self.qbit_number}.npy')
-
         Y = self.xp_counts.get_xp_probas() - 1/2**self.qbit_number
-
         XtY = np.sum(X*np.resize(Y,(4**self.qbit_number - 1,
                                     3**self.qbit_number,2**self.qbit_number
                                     )).transpose((1,2,0)),axis = (0,1))
@@ -128,7 +125,10 @@ class LRETomography():
         pauli_operators_array = np.load(
                 self.working_dir / 'SavedVariables'/ f'Pauli{self.qbit_number}.npy')
         theta_LS = self.get_theta_LS()
-
+        #print(np.round((np.eye(2**self.qbit_number)/2**self.qbit_number + np.sum(
+          #      np.resize(theta_LS,(2**self.qbit_number,2**self.qbit_number,
+           #             4**self.qbit_number-1)).transpose((
+            #                    2,0,1))*pauli_operators_array[1:,:,:],axis = 0)),3))
         return np.eye(2**self.qbit_number)/2**self.qbit_number + np.sum(
                 np.resize(theta_LS,(2**self.qbit_number,2**self.qbit_number,
                         4**self.qbit_number-1)).transpose((

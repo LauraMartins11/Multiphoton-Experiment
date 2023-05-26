@@ -45,13 +45,13 @@ class FidelityResults has the respective useful properties we might want to reco
 def function_fidelity(x,qubit_number, dm, bell):
     U1=np.diag([1,1])
     U2=general_unitary(x[0:3])
-    U3=general_unitary(x[3:6])
-    U4=general_unitary(x[6:9])
     P = np.kron(U2,U1)
-    if qubit_number > 2 :
-        P = np.kron(U3,P)
-        if qubit_number > 3 :
-            P = np.kron(U4,P)
+    if qubit_number > 2:
+        U3=general_unitary(x[3:6])
+        P = np.kron(U3,np.kron(U2,U1))
+        if qubit_number > 3:
+            U4=general_unitary(x[6:9])
+            P = np.kron(U4,np.kron(U3,np.kron(U2,U1)))
     return -np.abs(dm.apply_unitary(P).fidelity(bell))
 
 class FidelityResults(Results):
@@ -80,7 +80,7 @@ class FidelityResults(Results):
         return np.kron(self.u2,self.u2)
 
     def correct(self,qubit_number):
-        P = np.kron(self.u1,self.u2)
+        P = np.kron(self.u2,self.u1)
         if qubit_number > 2 :
             P = np.kron(self.u3,np.kron(self.u1,self.u2))
             if qubit_number > 3 :
