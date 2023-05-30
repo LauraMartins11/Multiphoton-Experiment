@@ -41,6 +41,7 @@ def tensor_product(state1,state2):
     return(np.kron(state1,state2))
 
 
+
 class DensityMatrix:
     """
     Once we have a state in density matrix form we want to calculate different things with it
@@ -63,7 +64,7 @@ class DensityMatrix:
             return (np.trace(scipy.linalg.sqrtm(scipy.linalg.sqrtm(self.state)@target@scipy.linalg.sqrtm(self.state))))**2/(np.trace(self.state)*np.trace(target))
         else:
             return np.transpose(np.conjugate(target))@self.state@target
-
+    
     def __repr__(self):
         return repr(self.state)
     

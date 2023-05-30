@@ -324,7 +324,6 @@ class LRETomography():
                 result=opt.optimize(int(self.qbit_number),self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
 
                 self.Us.append(result.u)
-
                 fidelity_sim[i]=result.minimum()
 
         else:

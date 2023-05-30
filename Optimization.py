@@ -45,13 +45,13 @@ class FidelityResults has the respective useful properties we might want to reco
 def function_fidelity(x,qubit_number, dm, bell):
     U1=np.diag([1,1])
     U2=general_unitary(x[0:3])
-    P = np.kron(U2,U1)
+    P = np.kron(U1,U2)
     if qubit_number > 2:
         U3=general_unitary(x[3:6])
-        P = np.kron(U3,np.kron(U2,U1))
+        P = np.kron(np.kron(U1,U2),U3)
         if qubit_number > 3:
             U4=general_unitary(x[6:9])
-            P = np.kron(U4,np.kron(U3,np.kron(U2,U1)))
+            P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
     return -np.abs(dm.apply_unitary(P).fidelity(bell))
 
 class FidelityResults(Results):
@@ -77,29 +77,18 @@ class FidelityResults(Results):
 
     @property
     def u(self):
-        return np.kron(self.u2,self.u2)
+        return np.kron(self.u1,self.u2)
 
     def correct(self,qubit_number):
-        P = np.kron(self.u2,self.u1)
+        P = np.kron(self.u1,self.u2)
         if qubit_number > 2 :
-            P = np.kron(self.u3,np.kron(self.u1,self.u2))
+            P = np.kron(np.kron(self.u1,self.u2),self.u3)
             if qubit_number > 3 :
-                P = np.kron(self.u4,np.kron(self.u3,np.kron(self.u1,self.u2)))      
+                P = np.kron(np.kron(np.kron(self.u1,self.u2),self.u3),self.u4)      
         return P
 
     def Density(self,fock_state):
         return(DensityMatrix(fock_state))
-    
-    def fock_basis(self,fock_state,qbit_number):
-        
-        fock_state_denisty = np.zeros((((qbit_number)**4),(qbit_number**4)),dtype = complex)
-        for w in range(0,4):
-            for i in range (0,4):
-                fock_state_denisty[w*3+3,i*3+3] = fock_state[w,i]
-        return(DensityMatrix(fock_state_denisty))
-    
-
-
 """
 Functions needed for the quantum process tomography
 """
