@@ -225,8 +225,9 @@ class LRETomography():
         self.xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         self.players_list=self.players_init(players)
 
-        #self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
-        #self.players_list_2_emissions=self.players_init(players)
+        if self.qbit_number == 2:
+            self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
+            self.players_list_2_emissions=self.players_init(players)
 
         proj=self.permutation_elements(["h","v"])
         proj_basis=self.permutation_elements(["x","y","z"])
@@ -243,7 +244,8 @@ class LRETomography():
 
         for k in range(lines):
             N_total=np.sum(self.xp_counts.counts_array[k])
-            #N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
+            if self.qbit_number == 2:
+                N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
             for l in range(columns):
 
                 angle_hwp=[]
@@ -287,10 +289,15 @@ class LRETomography():
 
                 if np.imag(p)<1e-13:
                     self.xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
-                    #self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
+                    if self.qbit_number == 2:
+                        self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
                 else:
                     print('You are getting complex probabilities')
-        return self.xp_counts_err #+ self.xp_counts_err_2_emissions
+        if self.qbit_number == 2:
+            return self.xp_counts_err + self.xp_counts_err_2_emissions
+        else:
+            return self.xp_counts_err
+        
 
     def calculate_dm_from_simulated_counts(self, players):
 
