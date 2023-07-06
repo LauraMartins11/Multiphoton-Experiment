@@ -21,6 +21,8 @@ from pathlib import Path
 from itertools import combinations
 import time
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
 import numpy as np
 from scipy.optimize import least_squares
 import scipy.linalg as lin
@@ -152,12 +154,13 @@ class LRETomography():
         experimental data, using the LRE method and fast maximum likelihood
         estimation."""
 
+        if correct_double_emission is not None:
+            self.xp_counts.double_emission_columns=correct_double_emission
+            self.xp_counts.correct_counts_with_double_emission()
+
         if correct_eff is not None:
             self.xp_counts.correct_counts_with_channels_eff(correct_eff, correct_double_emission_eff)
             #print("I'm correcting efficiencies")
-
-        if correct_double_emission is not None:
-            self.xp_counts.correct_counts_with_double_emission()
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
         if print_nc:
@@ -226,8 +229,8 @@ class LRETomography():
         self.players_list=self.players_init(players)
 
         if self.qbit_number == 2:
-            self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
-            self.players_list_2_emissions=self.players_init(players)
+           self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
+           self.players_list_2_emissions=self.players_init(players)
 
         proj=self.permutation_elements(["h","v"])
         proj_basis=self.permutation_elements(["x","y","z"])
@@ -245,7 +248,7 @@ class LRETomography():
         for k in range(lines):
             N_total=np.sum(self.xp_counts.counts_array[k])
             if self.qbit_number == 2:
-                N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
+               N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
             for l in range(columns):
 
                 angle_hwp=[]
@@ -290,11 +293,11 @@ class LRETomography():
                 if np.imag(p)<1e-13:
                     self.xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
                     if self.qbit_number == 2:
-                        self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
+                       self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
                 else:
                     print('You are getting complex probabilities')
         if self.qbit_number == 2:
-            return self.xp_counts_err + self.xp_counts_err_2_emissions
+           return self.xp_counts_err + self.xp_counts_err_2_emissions
         else:
             return self.xp_counts_err
         
@@ -394,6 +397,7 @@ class LRETomography():
         """
         self.fidelity_2_experimental_dms_mu = np.mean(fidelity_sim)
         self.fidelity_2_experimental_dms_std = np.std(fidelity_sim)
+
 
 
 class GeneticTomography(LRETomography):

@@ -121,26 +121,9 @@ class XPCounts:
             ### The ordering of the channel_eff_2_emissinos matches with the covention: {123}, {124}, {134}, {234} (this changes depending on how we save data)
             ### If we change this order we need to do the same in set_raw_counts in efficiencies.py
             ### Correcting with the channel_eff
-            if self.qbit_number == 1:
-                self.counts_array[w] /= channel_eff[[0,1]].astype(float)
-                if double_emission_eff is not None:
-                    self.counts_array_2_emissions[w] /= double_emission_eff[[0,1]].astype(float)
-
-            if self.qbit_number == 2:
-                self.counts_array[w] /= channel_eff[[0,1,2,3]].astype(float)
-                if double_emission_eff is not None:
-                    self.counts_array_2_emissions[w] /= double_emission_eff[[0,1,2,3]].astype(float)
-
-            if self.qbit_number == 3:
-                self.counts_array[w] /= channel_eff[[0,1,2,3,4,5,6,7]].astype(float)
-                if double_emission_eff is not None:
-                    self.counts_array_2_emissions[w] /= double_emission_eff[[0,1,2,3,4,5,6,7]].astype(float)
-                    
-            if self.qbit_number== 4:
-                self.counts_array[w] /= channel_eff[[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]].astype(float)
-                if double_emission_eff is not None:
-                    self.counts_array_2_emissions[w] /= double_emission_eff[[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]].astype(float)
-        
+            self.counts_array[w] /= channel_eff.astype(float)
+            if double_emission_eff is not None:
+                self.counts_array_2_emissions[w] /= double_emission_eff.astype(float)
             
             '''
             Applying the correction of the double emission with respect of the order of the pseudo code : {123}, {124}, {134}, {234}
@@ -153,7 +136,9 @@ class XPCounts:
     def correct_counts_with_double_emission(self):
         ### Subtracting the double emission counts from the coincidences
         for i in range(2**self.qbit_number):
-            self.counts_array[:,i] = self.counts_array[:,i]-(self.counts_array_2_emissions[:,i%2]+self.counts_array_2_emissions[:,2+int(i/2)])
+            offset = np.min(self.double_emission_columns)
+            doubles = np.sum([self.counts_array_2_emissions[j-offset][i] for j in self.double_emission_columns[i][:]])
+            self.counts_array[:,i] = self.counts_array[:,i]-doubles
 
         ### Counts need to be integers
         self.counts_array = np.round(self.counts_array)

@@ -77,15 +77,12 @@ class FidelityResults(Results):
 
     @property
     def u(self):
-        return np.kron(self.u1,self.u2)
-
-    def correct(self,qubit_number):
-        P = np.kron(self.u1,self.u2)
-        if qubit_number > 2 :
-            P = np.kron(np.kron(self.u1,self.u2),self.u3)
-            if qubit_number > 3 :
-                P = np.kron(np.kron(np.kron(self.u1,self.u2),self.u3),self.u4)      
-        return P
+        u=np.kron(self.u1,self.u2)
+        if self.qubit_number > 2:
+            u=np.kron(u,self.u3)
+            if self.qubit_number > 3:
+                u=np.kron(u,self.u4)
+        return u
 
     def Density(self,fock_state):
         return(DensityMatrix(fock_state))

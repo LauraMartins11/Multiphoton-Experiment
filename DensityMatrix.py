@@ -17,6 +17,11 @@ import errors
 # from tomography import LRETomography
 from player import Player
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from NestedForLoop import get_iterator
+
 def general_unitary(x):
         return np.array([[np.exp(1j*x[0])*np.cos(x[2]), np.exp(1j*x[1])*np.sin(x[2])],
                         [-np.exp(-1j*x[1])*np.sin(x[2]), np.exp(-1j*x[0])*np.cos(x[2])]])
@@ -78,6 +83,89 @@ class DensityMatrix:
                     self.state[w*3+3,i*3+3] = fock_state[w,i]
         else :
                 self.state = fock_state
+
+    def plot_dm(self):
+        density_matrix_plot = self.state
+        real_density_matrix = density_matrix_plot.real
+        imag_density_matrix = density_matrix_plot.imag
+        HV_label = {0: "H", 1: "V"}
+
+        HV_iterator = get_iterator(2, 4)
+        axes_labels = []
+        for k in range(np.shape(density_matrix_plot)[0]):
+            axes_labels.append("".join(tuple(map(HV_label.get, HV_iterator[k]))))
+
+        nrows, ncols = density_matrix_plot.shape
+
+        # Create a meshgrid for the x and y values
+        x = np.arange(ncols)
+        y = np.arange(nrows)
+        X, Y = np.meshgrid(x, y)
+
+        # Flatten the density matrix values
+        Z = real_density_matrix.flatten()
+        W = imag_density_matrix.flatten()
+
+        # Set the column heights as Z values
+        column_heights = abs(Z)
+        column_heights2 = abs(W)
+
+        # Set the column widths and depths
+        column_width = column_depth = 0.7
+
+        # Create the first figure
+        fig1 = plt.figure(figsize=(8, 6))
+        ax1 = fig1.add_subplot(111, projection='3d')
+
+        # Plot the density matrix as 3D columns using a colormap
+        cmap = cm.get_cmap('tab20c')
+        ax1.bar3d(X.ravel(), Y.ravel(), np.zeros_like(Z), column_width, column_depth, column_heights, shade=True, color=cmap(Z))
+
+        ax1.set_xticks(np.arange(ncols) + 0.5)
+        ax1.set_yticks(np.arange(nrows) + 0.5)
+        ax1.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=8, fontweight='bold')
+        ax1.set_yticklabels(axes_labels, rotation=-60,fontsize=8, fontweight='bold')
+
+        # Set the title
+        ax1.set_title('Real Density Matrix', fontsize=14, fontweight='bold')
+
+        # Add a colorbar
+        cbar = fig1.colorbar(cm.ScalarMappable(cmap=cmap), ax=ax1)
+        cbar.set_label('Real Density', rotation=270, labelpad=15)
+
+        # Adjust plot limits to avoid cutoff of tick labels
+        ax1.set_xlim(0, ncols)
+        ax1.set_ylim(0, nrows)
+        ax1.view_init(elev=15, azim=-45)
+        # Create the second figure
+        fig2 = plt.figure(figsize=(8, 6))
+        ax2 = fig2.add_subplot(111, projection='3d')
+
+        # Plot the density matrix as 3D columns using a colormap
+        ax2.bar3d(X.ravel(), Y.ravel(), np.zeros_like(W), column_width, column_depth, column_heights2, shade=True, color=cmap(W),zsort='max')
+
+        # Set the x and y axis labels
+        ax2.set_xticks(np.arange(ncols) + 0.5)
+        ax2.set_yticks(np.arange(nrows) + 0.5)
+        ax2.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=10, fontweight='bold')
+        ax2.set_yticklabels(axes_labels, rotation=-60, fontsize=10, fontweight='bold')
+        ax2.set_zlim(0, np.max([column_heights, column_heights2]))  # Set z-axis limits
+
+        # Set the title
+        ax2.set_title('Imaginary Density Matrix', fontsize=14, fontweight='bold')
+
+        # Add a colorbar
+        cbar = fig2.colorbar(cm.ScalarMappable(cmap=cmap), ax=ax2)
+        cbar.set_label('Imag Density', rotation=270, labelpad=15)
+
+        # Adjust plot limits to avoid cutoff of tick labels
+        ax2.set_xlim(0, ncols)
+        ax2.set_ylim(0, nrows)
+        ax2.view_init(elev=15, azim=-45)
+        # Display the figures
+        plt.show()
+
+
 class GHZ: 
 
     def __init__(self,state1,state2):

@@ -29,11 +29,12 @@ select_lines_in_file() writes the data of a file in an array:
 - each line (iter iteration) corresponds to a different column of the datafile (to a different channel)
 """
 def select_lines_in_file(start_line, finish_line, datafiles, shape, bases, directory):
-    array=np.zeros(shape, dtype='float')
+    array=np.zeros((finish_line-start_line,shape[1]), dtype='float')
     os.chdir(directory)
 
     for w in range(shape[1]):
         file=finding_file('Bigiteration_', bases[w], datafiles)
+        
         with open(file) as file:
             for line in file:
                 fields = line.split()
@@ -69,7 +70,7 @@ def get_channels_eff(datafiles,qubit_number, column_start, column_stop, director
                         base = i + j + k + l
                         eff.append(base)
 
-    efficiencies_aux=np.zeros((len(eff), column_stop-column_start), dtype=float)
+    efficiencies_aux=np.zeros((column_stop-column_start, len(eff)), dtype=float)
     
     ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
     efficiencies_aux=select_lines_in_file(column_start, column_stop, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
@@ -88,7 +89,6 @@ def get_channels_eff(datafiles,qubit_number, column_start, column_stop, director
 def set_raw_counts(datafiles, qubit_number, column_start, column_stop, directory):
     os.chdir(directory)
     counts_aux=np.zeros((2**qubit_number,3**qubit_number), dtype=float)
-    
     
     letters = ['x', 'y', 'z']
     bases = []
