@@ -4,3 +4,6 @@ __pycache__/
 .ipynb_checkpoints
 *.png
 ProcessTomoData/
+Quantum State Tomography_Fock_Basis.ipynb
+Kuwait_function.py
+Tomography via Kuwait.ipynb
