@@ -22,7 +22,7 @@ from NestedForLoop import get_iterator
 
 
 import os
-
+from projectorcounts import *
 import numpy as np
         
 class ExperimentalPauliExpectations():
@@ -41,10 +41,11 @@ class ExperimentalPauliExpectations():
                              [[0,0],[+1,-1],[0,0]],
                              [[0,0],[0,0],[+1,-1]]])#/2
             
-    def __init__(self,qbit_number,xp_counts):
+    def __init__(self,qbit_number,xp_counts,xp_counts_2_emissions=None):
         # In the comments, N is the number of qbits.
         self.qbit_number = qbit_number
-        self.xp_probas = xp_counts.get_xp_probas()
+        self.xp_counts = XPCounts(xp_counts,self.qbit_number,xp_counts_2_emissions)
+        self.xp_probas = self.xp_counts.get_xp_probas()
         #definition of iterators. lists of arrays of indices, corresponding
         #to operators, basis and states in tensors products
         self.eigen_iterator  = get_iterator(2,self.qbit_number) 
@@ -55,6 +56,7 @@ class ExperimentalPauliExpectations():
         # of pauli operators. To get the structure, see the function 
         # "get_xp_pauli_expectation_array" below.
         self.create_xp_pauli_expectation_array()
+    
     
     def create_xp_pauli_expectation_array(self):
         """
@@ -78,7 +80,7 @@ class ExperimentalPauliExpectations():
                         Gamma_prod *= self.Gamma_matrix[i,j,k]
                     pauli_expect += Gamma_prod * self.xp_probas[basis_index,eigen_index]
             self.pauli_expectations_array[pauli_index] = pauli_expect
-    
+            
     def get_pauli_expectation(self, pauli_combination):
         """
         Returns the expactation value of a tensor product of N Pauli
