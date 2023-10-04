@@ -20,14 +20,15 @@ from processmatrix import conversion, P_matrix, ChannelCJ, real_to_complex
 from constants import *
 
 class Results:
-    def __init__(self, params, data_points, function, *fargs):
+    def __init__(self, params, qubit_number,data_points, function, *fargs):
         self.params = params
         self.data_points = data_points
         self.function = function
         self.fargs = fargs
-    
+        self.qubit_number = qubit_number
+
     def minimum(self):
-        return self.function(self.params, self.data_points, *self.fargs)
+        return self.function(self.params,self.qubit_number, self.data_points, *self.fargs)
 
 
 """
@@ -41,29 +42,50 @@ and what fidelity that would be
 class FidelityResults has the respective useful properties we might want to reconver
 """
 
-def function_fidelity(x, dm, bell):
+def function_fidelity(x,qubit_number, dm, bell):
     U1=np.diag([1,1])
-    U2=general_unitary(x)#[:3])
-    return -np.abs(dm.apply_unitary(np.kron(U1,U2)).fidelity(bell))
+    U2=general_unitary(x[0:3])
+    P = np.kron(U1,U2)
+    if qubit_number > 2:
+        U3=general_unitary(x[3:6])
+        P = np.kron(np.kron(U1,U2),U3)
+        if qubit_number > 3:
+            U4=general_unitary(x[6:9])
+            P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
+    return -np.abs(dm.apply_unitary(P).fidelity(bell))
 
 class FidelityResults(Results):
     @property
     def u1(self):
         return np.diag([1,1])
-
+    
     @property
     def u2(self):
-        return general_unitary(self.params)#[:3])
-
+        return general_unitary(self.params[0:3])
+    
     @property
-    def u(self):
-        return np.kron(self.u1, self.u2)
+    def u3(self):
+        return general_unitary(self.params[3:6])
+    
+    @property
+    def u4(self):
+        return general_unitary(self.params[6:9])    
 
     @property
     def optimized_state(self):
         return self.data_points.apply_unitary(self.u)
 
+    @property
+    def u(self):
+        u=np.kron(self.u1,self.u2)
+        if self.qubit_number > 2:
+            u=np.kron(u,self.u3)
+            if self.qubit_number > 3:
+                u=np.kron(u,self.u4)
+        return u
 
+    def Density(self,fock_state):
+        return(DensityMatrix(fock_state))
 """
 Functions needed for the quantum process tomography
 """
@@ -149,6 +171,7 @@ class Optimizer:
         self.function = function
         self.results = results
 
-    def optimize(self, data_points, *fargs, bounds=None, penalty=None):
-        params=diffev2(self.function, self.initial_guess, args=(data_points, *fargs), penalty=penalty, strategy=Best1Bin, bounds=bounds, npop=50, gtol=100, disp=False, ftol=1e-8, handler=False)#, itermon=VerboseMonitor(50))
-        return self.results(params, data_points, self.function, *fargs)
+
+    def optimize(self, qubit_number, data_points, *fargs,  bounds=None, penalty=None):
+        params=diffev2(self.function, self.initial_guess, args=(qubit_number,data_points, *fargs),penalty=penalty, strategy=Best1Bin, bounds=bounds, npop=50, gtol=100, disp=False, ftol=1e-8, handler=False)#, itermon=VerboseMonitor(50))
+        return self.results(params, qubit_number,data_points, self.function, *fargs)

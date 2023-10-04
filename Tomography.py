@@ -21,6 +21,8 @@ from pathlib import Path
 from itertools import combinations
 import time
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
 import numpy as np
 from scipy.optimize import least_squares
 import scipy.linalg as lin
@@ -89,7 +91,7 @@ class LRETomography():
     Likelihood estimation.
     """
 
-    def __init__(self, qbit_number,xp_counts,xp_counts_2_emissions,working_dir=Path(__file__).parent):
+    def __init__(self, qbit_number,xp_counts,xp_counts_2_emissions=None,working_dir=Path(__file__).parent):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
@@ -100,8 +102,7 @@ class LRETomography():
         - 'working_dir' : directory to save and load data
         """
         self.qbit_number = qbit_number
-        self.xp_counts = XPCounts(xp_counts,xp_counts_2_emissions,self.qbit_number)
-        self.xp_counts_2_emissions = XPCounts(xp_counts,xp_counts_2_emissions,self.qbit_number)
+        self.xp_counts = XPCounts(xp_counts,self.qbit_number,xp_counts_2_emissions)
         self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
@@ -119,13 +120,17 @@ class LRETomography():
                                     )).transpose((1,2,0)),axis = (0,1))
         return np.dot(invXtX_matrix,XtY)
 
+
     def LREstate(self):
         """Function that calculates an approximation of the density matrix,
         using the linear regression estimation method"""
         pauli_operators_array = np.load(
                 self.working_dir / 'SavedVariables'/ f'Pauli{self.qbit_number}.npy')
         theta_LS = self.get_theta_LS()
-
+        #print(np.round((np.eye(2**self.qbit_number)/2**self.qbit_number + np.sum(
+          #      np.resize(theta_LS,(2**self.qbit_number,2**self.qbit_number,
+           #             4**self.qbit_number-1)).transpose((
+            #                    2,0,1))*pauli_operators_array[1:,:,:],axis = 0)),3))
         return np.eye(2**self.qbit_number)/2**self.qbit_number + np.sum(
                 np.resize(theta_LS,(2**self.qbit_number,2**self.qbit_number,
                         4**self.qbit_number-1)).transpose((
@@ -143,15 +148,19 @@ class LRETomography():
         #method, from experimental data.
         self.pseudo_state = self.LREstate()
 
-    def run(self,correct_eff=None, correct_eff2=None,print_nc=False, ):
+    def run(self, correct_eff=None, correct_double_emission_eff=None, correct_double_emission=None, print_nc=False):
         """
         Runs the pseudo tomography to get generate a state out of the
         experimental data, using the LRE method and fast maximum likelihood
         estimation."""
 
+        if correct_double_emission is not None:
+            self.xp_counts.double_emission_columns=correct_double_emission
+            self.xp_counts.correct_counts_with_double_emission()
+
         if correct_eff is not None:
-            self.xp_counts.correct_counts_with_channels_eff(correct_eff,correct_eff2)
-            print("I'm correcting efficiencies")
+            self.xp_counts.correct_counts_with_channels_eff(correct_eff, correct_double_emission_eff)
+            #print("I'm correcting efficiencies")
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis
         if print_nc:
@@ -164,6 +173,9 @@ class LRETomography():
         self.run_pseudo_tomo()
         self.quantum_state.set_density_matrix(self.pseudo_state)
         self.state=DensityMatrix(self.quantum_state.get_density_matrix())
+
+    def fock(self):
+        self.state.fock_basis(self.qbit_number)
 
 
     def permutation_elements(self, elements):
@@ -209,14 +221,16 @@ class LRETomography():
 
 
     def simulate_new_counts_with_uncertainties(self, players):
-        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis   
+        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis 
+        
         lines, columns = 3**self.qbit_number,2**self.qbit_number
 
         self.xp_counts_err=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
         self.players_list=self.players_init(players)
 
-        self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
-        self.players_list_2_emissions=self.players_init(players)
+        if self.qbit_number == 2:
+           self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
+           self.players_list_2_emissions=self.players_init(players)
 
         proj=self.permutation_elements(["h","v"])
         proj_basis=self.permutation_elements(["x","y","z"])
@@ -233,7 +247,8 @@ class LRETomography():
 
         for k in range(lines):
             N_total=np.sum(self.xp_counts.counts_array[k])
-            N_total_2_emissions=np.sum(self.xp_counts_2_emissions.counts_array_2_emissions[k])
+            if self.qbit_number == 2:
+               N_total_2_emissions=np.sum(self.xp_counts.counts_array_2_emissions[k])
             for l in range(columns):
 
                 angle_hwp=[]
@@ -277,80 +292,15 @@ class LRETomography():
 
                 if np.imag(p)<1e-13:
                     self.xp_counts_err[k][l]=np.random.poisson(lam=np.real(p)*N_total)
-                    self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
+                    if self.qbit_number == 2:
+                       self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
                 else:
                     print('You are getting complex probabilities')
-        return self.xp_counts_err + self.xp_counts_err_2_emissions
-    
-   ## def simulate_new_counts_with_uncertainties_2_emissions(self, players):
-        ### lines are the 3 measurement basis and columns are the 2 possible outcomes for each measurement basis   
-        lines, columns = 3**self.qbit_number,2**self.qbit_number
-        self.xp_counts_err_2_emissions=np.zeros((3**self.qbit_number,2**self.qbit_number), dtype=int)
-        self.players_list_2_emissions=self.players_init(players)
-
-        proj_2_emissions=self.permutation_elements(["h","v"])
-        proj_basis=self.permutation_elements(["x","y","z"])
-
-        """
-            we sample a value within a normal distribution for each waveplate we are using,
-            given a mean value that is definied in the dictionaries in errors.py
-        """
-        shift_hwp=[]
-        shift_qwp=[]
-        for j in range(self.qbit_number):
-            shift_hwp.append(np.random.normal(scale=self.players_list[j].sigma_wp[0], size=None))
-            shift_qwp.append(np.random.normal(scale=self.players_list[j].sigma_wp[1], size=None))
-
-        for k in range(lines):
-            N_total_2_emissions=np.sum(self.xp_counts_2_emissions.counts_array_2_emissions[k])
-            for l in range(columns):
-
-                angle_hwp=[]
-                angle_qwp=[]
-                r=[]
-                projectors=[]
-                ### j defines the player
-                for j in range(self.qbit_number):
-
-                    angle_hwp.append(errors.HWP_DICT[proj_basis[k][j]] + shift_hwp[j])
-                    angle_qwp.append(errors.QWP_DICT[proj_basis[k][j]] + shift_qwp[j])
-
-                    """
-                    r is the rotation matrix that arya's (cersei's) qubit goes through
-                    before being measured in {V,H}
-                    - the angle of rotation is determined based on the uncertainty of our waveplates
-                    (determined the in lines above)
-                    
-                    when we do the tensor product of both (MB_change) and apply it to our state's density
-                    matrix (dm_sim_WP), we are performing a basis rotation before the projection in {V, H}
-                    (proj_basis_array)
-                    """ 
-                    
-                    r.append(wp_rotation(angle_qwp[j],np.pi/2)@wp_rotation(angle_hwp[j],np.pi))
-
-                    projectors.append(errors.PROJECTORS[proj_2_emissions[l][j]])
-
-                MB_change=ft.reduce(np.kron, r)
-
-                dm_sim_WP=MB_change@self.state.state@np.transpose(np.conjugate(MB_change))
-                ###proj[x][y] x and y refer to the output port of the PBS and to the player, respectively
-                proj_basis_array=ft.reduce(np.kron, projectors)
-                """
-                next we need to calculate the probability (p) of the state collapsing into the state represented
-                by the projector
-
-                with that we can generate a new xp_counts matrix (xp_counts_err), with each entry being a sample
-                of the poissonian distibution with mean value (lam=p*N_total)
-                """
-                p=proj_basis_array@dm_sim_WP@np.transpose(np.conjugate(proj_basis_array))
-
-                if np.imag(p)<1e-13:
-                    self.xp_counts_err_2_emissions[k][l]=np.random.poisson(lam=np.real(p)*N_total_2_emissions)
-                else:
-                    print('You are getting complex probabilities')
-        return self.xp_counts_err_2_emissions
-
-
+        if self.qbit_number == 2:
+           return self.xp_counts_err + self.xp_counts_err_2_emissions
+        else:
+            return self.xp_counts_err
+        
 
     def calculate_dm_from_simulated_counts(self, players):
 
@@ -362,7 +312,6 @@ class LRETomography():
 
         return(error_simulation_dm)
     
-
 
     def calculate_fidelity_error(self, players, error_runs, opt, target, optimization=False, bounds=None, penalty=None):
         self.players=players
@@ -382,10 +331,9 @@ class LRETomography():
             print("Optimizing the fidelity between input and target up to a unitary")
 
             for i in range(error_runs):
-                result=opt.optimize(self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
+                result=opt.optimize(int(self.qbit_number),self.error_simulation_dm[i].state, target, bounds=bounds, penalty=penalty)
 
                 self.Us.append(result.u)
-
                 fidelity_sim[i]=result.minimum()
 
         else:
@@ -449,6 +397,7 @@ class LRETomography():
         """
         self.fidelity_2_experimental_dms_mu = np.mean(fidelity_sim)
         self.fidelity_2_experimental_dms_std = np.std(fidelity_sim)
+
 
 
 class GeneticTomography(LRETomography):
