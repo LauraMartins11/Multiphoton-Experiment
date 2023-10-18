@@ -16,9 +16,9 @@ This can be used if we want to find files that have 'general' in common but that
 """
 def finding_file(general, containing, filenames):
     for file in filenames:
-        if fnmatch.fnmatch(file, general+'[!a-z]_'+containing+'*'):
+        if fnmatch.fnmatch(file, general+containing+'*'):
             return file
-        elif fnmatch.fnmatch(file, general+'[!a-z][!a-z]_'+containing+'*'):
+        elif fnmatch.fnmatch(file, general+containing+'*'):
             return file
     print('No file containing: ', general+containing, '...')
     pass
@@ -33,7 +33,7 @@ def select_lines_in_file(start_line, finish_line, datafiles, shape, bases, direc
     os.chdir(directory)
 
     for w in range(shape[1]):
-        file=finding_file('Bigiteration_', bases[w], datafiles)
+        file=finding_file('ABCD=', bases[w], datafiles)
         
         with open(file) as file:
             for line in file:
