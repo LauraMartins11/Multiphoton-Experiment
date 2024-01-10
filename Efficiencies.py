@@ -69,10 +69,11 @@ def get_channels_eff(datafiles,qubit_number, column_start, column_stop, director
                     if qubit_number == 4:
                         base = i + j + k + l
                         eff.append(base)
-
-    efficiencies_aux=np.zeros((column_stop-column_start, len(eff)), dtype=float)
     
-    ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
+
+    efficiencies_aux=np.zeros(((column_stop)-column_start, len(eff)), dtype=float)
+    
+        ### !Don't forget that we transpose here. That's why we sum over the 0 axis and not 1 in the next line!
     efficiencies_aux=select_lines_in_file(column_start, column_stop, datafiles, np.shape(efficiencies_aux), eff, os.getcwd()).transpose()
 
     """
@@ -80,9 +81,8 @@ def get_channels_eff(datafiles,qubit_number, column_start, column_stop, director
     When normalized we end up with a an array with the relative channel efficiencies in the order we saved the data
     The re-ordiring of the basis to match each channel to a measurement basis happens in
     correct_counts_with_channels_eff in ProjectorCounts.py
-    """
+    """         
     efficiencies=np.sum(efficiencies_aux, 0)/np.max(np.sum(efficiencies_aux, 0))
-
     return(efficiencies)
 
 ### set_raw_counts() returns an array with the counts recorded in the columns 4:8 of the datafile (where the coincidence counts are written)
@@ -133,6 +133,45 @@ def set_raw_counts(datafiles, qubit_number, column_start, column_stop, directory
         counts_aux=counts[[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]]
         return(counts_aux)
     
+def set_raw_counts_double_emissions(datafiles, qubit_number, column_start, column_stop, directory):
+    os.chdir(directory)
+    counts_aux=np.zeros((column_stop-column_start,3**qubit_number), dtype=float)
+    
+    letters = ['x', 'y', 'z']
+    bases = []
+
+    for i in letters:
+        if qubit_number == 1:
+            base = i 
+            bases.append(base)
+        for j in letters:
+            if qubit_number == 2:
+                base = i + j
+                bases.append(base)
+            for k in letters:
+                if qubit_number == 3:
+                    base = i + j + k 
+                    bases.append(base)
+                for l in letters:
+                    if qubit_number == 4:
+                        base = i + j + k + l
+                        bases.append(base)
+
+    counts=select_lines_in_file(column_start, column_stop, datafiles, np.shape(counts_aux), bases, os.getcwd())
+
+    """
+    Just ordering the array such that it matches with the covention counts_aux[x] (this changes depending on how we save data):
+    - x=0: HH
+    - x=1: HV
+    - x=2: VH
+    - x=3: VV
+    If we change this order we need to do the same in correct_counts_with_channels_eff in projectorcounts.py
+    """
+    indice = []
+    for i in range(column_stop-column_start):
+        indice.append(i)
+    counts_aux=counts[[tuple(indice)]]
+    return(counts_aux)
 
     
     

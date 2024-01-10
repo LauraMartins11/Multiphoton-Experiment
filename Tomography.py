@@ -91,7 +91,7 @@ class LRETomography():
     Likelihood estimation.
     """
 
-    def __init__(self, qbit_number,xp_counts,xp_counts_2_emissions=None,working_dir=Path(__file__).parent):
+    def __init__(self, qbit_number,xp_counts,xp_counts_2_emissions=None,xp_counts_4_emissions=None,working_dir=Path(__file__).parent):
         """
         Initialisation of the tomography.
         - 'qbit_number' : number of qubits
@@ -102,7 +102,7 @@ class LRETomography():
         - 'working_dir' : directory to save and load data
         """
         self.qbit_number = qbit_number
-        self.xp_counts = XPCounts(xp_counts,self.qbit_number,xp_counts_2_emissions)
+        self.xp_counts = XPCounts(xp_counts,self.qbit_number,xp_counts_2_emissions,xp_counts_4_emissions)
         self.working_dir = Path(working_dir)
         self.quantum_state = QuantumState(
             np.eye(2**self.qbit_number) / 2**self.qbit_number)
@@ -148,7 +148,7 @@ class LRETomography():
         #method, from experimental data.
         self.pseudo_state = self.LREstate()
 
-    def run(self, correct_eff=None, correct_double_emission_eff=None, correct_double_emission=None, print_nc=False):
+    def run(self, correct_eff=None, correct_double_emission_eff=None, correct_double_emission=None, four_emission_eff = None, GHZ = False, print_nc=False):
         """
         Runs the pseudo tomography to get generate a state out of the
         experimental data, using the LRE method and fast maximum likelihood
@@ -157,9 +157,12 @@ class LRETomography():
         if correct_double_emission is not None:
             self.xp_counts.double_emission_columns=correct_double_emission
             self.xp_counts.correct_counts_with_double_emission()
+        
+        if GHZ == True :
+            self.xp_counts.correct_counts_with_double_emission_for_GHZ()
 
         if correct_eff is not None:
-            self.xp_counts.correct_counts_with_channels_eff(correct_eff, correct_double_emission_eff)
+            self.xp_counts.correct_counts_with_channels_eff(correct_eff, correct_double_emission_eff,four_emission_eff)
             #print("I'm correcting efficiencies")
 
         ### Sanity check: This prints the normalized number of counts for each measurement basis

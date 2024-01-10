@@ -12,12 +12,14 @@ from pathlib import Path
 import fnmatch
 
 import mystic
-from mystic.solvers import DifferentialEvolutionSolver, diffev2
+from mystic.solvers import DifferentialEvolutionSolver, diffev2 ,fmin
 from mystic.strategy import Best1Bin
 from mystic.monitors import Monitor,VerboseMonitor
 from densitymatrix import DensityMatrix, general_unitary, apply_unitary_to_dm, fid
 from processmatrix import conversion, P_matrix, ChannelCJ, real_to_complex
 from constants import *
+
+
 
 class Results:
     def __init__(self, params, qubit_number,data_points, function, *fargs):
@@ -42,22 +44,40 @@ and what fidelity that would be
 class FidelityResults has the respective useful properties we might want to reconver
 """
 
-def function_fidelity(x,qubit_number, dm, bell):
+def function_fidelity_U(x, qubit_number, dm, bell):
     U1=np.diag([1,1])
     U2=general_unitary(x[0:3])
     P = np.kron(U1,U2)
     if qubit_number > 2:
         U3=general_unitary(x[3:6])
-        P = np.kron(np.kron(U1,U2),U3)
+        P = np.kron(np.kron(U1,U2),U3) 
         if qubit_number > 3:
             U4=general_unitary(x[6:9])
             P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
+
+    return -np.abs(dm.apply_unitary(P).fidelity(bell))
+
+def function_fidelity_Rz(x, qubit_number, dm, bell):
+    U1=z_rotation(x)
+    U2=np.diag([1,1])
+    P = np.kron(U1,U2)
+    if qubit_number > 2:
+        U3=np.diag([1,1])
+        P = np.kron(np.kron(U1,U2),U3) 
+        if qubit_number > 3:
+            U4=np.diag([1,1])
+            P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
+
     return -np.abs(dm.apply_unitary(P).fidelity(bell))
 
 class FidelityResults(Results):
     @property
     def u1(self):
         return np.diag([1,1])
+    
+    @property
+    def u1_Rz(self):
+        return z_rotation(self.params)
     
     @property
     def u2(self):
@@ -83,6 +103,19 @@ class FidelityResults(Results):
             if self.qubit_number > 3:
                 u=np.kron(u,self.u4)
         return u
+    
+    @property
+    def u_Rz(self):
+        u=np.kron(self.u1_Rz,np.diag([1,1]))
+        if self.qubit_number > 2:
+            u=np.kron(u,np.diag([1,1]))
+            if self.qubit_number > 3:
+                u=np.kron(u,np.diag([1,1]))
+        return u
+    
+    @property
+    def optimized_state_Rz(self):
+        return self.data_points.apply_unitary(self.u_Rz)
 
     def Density(self,fock_state):
         return(DensityMatrix(fock_state))
@@ -174,4 +207,8 @@ class Optimizer:
 
     def optimize(self, qubit_number, data_points, *fargs,  bounds=None, penalty=None):
         params=diffev2(self.function, self.initial_guess, args=(qubit_number,data_points, *fargs),penalty=penalty, strategy=Best1Bin, bounds=bounds, npop=50, gtol=100, disp=False, ftol=1e-8, handler=False)#, itermon=VerboseMonitor(50))
+        return self.results(params, qubit_number,data_points, self.function, *fargs)
+        
+    def optimize_fmin(self, qubit_number, data_points, *fargs,  bounds=None, penalty=None):
+        params=fmin(self.function, self.initial_guess, args=(qubit_number,data_points, *fargs),penalty=penalty, bounds=bounds, disp=False, ftol=1e-18,xtol=1e-18, handler=False)#, itermon=VerboseMonitor(50))
         return self.results(params, qubit_number,data_points, self.function, *fargs)

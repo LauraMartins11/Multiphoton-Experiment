@@ -35,10 +35,12 @@ class XPCounts:
     we performed the measurement.
     """
 
-    def __init__(self,counts_array,qbit_number,counts_array_2_emissions=None):
+    def __init__(self,counts_array,qbit_number,counts_array_2_emissions=None,counts_array_4_emissions=None):
         self.counts_array = counts_array
         if counts_array_2_emissions is not None:
             self.counts_array_2_emissions = counts_array_2_emissions
+        if counts_array_4_emissions is not None:
+            self.counts_array_4_emissions = counts_array_4_emissions
         self.qbit_number = qbit_number # int(np.log2(np.shape(self.counts_array)[1]))
 
         self.base_2 = 2**np.linspace(0,self.qbit_number-1,self.qbit_number)
@@ -114,7 +116,7 @@ class XPCounts:
                 self.total_counts_array,(
                         2**self.qbit_number,3**self.qbit_number)).transpose()
 
-    def correct_counts_with_channels_eff(self, channel_eff, double_emission_eff=None):
+    def correct_counts_with_channels_eff(self, channel_eff, double_emission_eff=None,four_emission_eff=None):
 
         for w in range(3**self.qbit_number):
             ### The ordering of the channel_eff matches with the covention: 0: HH; 1: HV; 2: VH; 3: VV(this changes depending on how we save data)
@@ -124,10 +126,12 @@ class XPCounts:
             self.counts_array[w] /= channel_eff.astype(float)
             if double_emission_eff is not None:
                 self.counts_array_2_emissions[w] /= double_emission_eff.astype(float)
+            if four_emission_eff is not None:
+                self.counts_array_4_emissions[w] /= four_emission_eff.astype(float)
             
             '''
             Applying the correction of the double emission with respect of the order of the pseudo code : {123}, {124}, {134}, {234}
-            {HH} = {13} = {13} - {123} - {134};
+            {HH} = {13} = {13} - ({123} - {1234}) - ({134} - {1234}) - {1234}
             {HV} = {14} = {14} - {124} - {134};
             {VH} = {23} = {23} - {123} - {234};
             {VV} = {24} = {24} - {124} - {234};
@@ -137,11 +141,22 @@ class XPCounts:
         ### Subtracting the double emission counts from the coincidences
         for i in range(2**self.qbit_number):
             offset = np.min(self.double_emission_columns)
-            doubles = np.sum([self.counts_array_2_emissions[j-offset][i] for j in self.double_emission_columns[i][:]])
-            self.counts_array[:,i] = self.counts_array[:,i]-doubles
+            doubles = np.sum([self.counts_array_2_emissions[j-offset][i]  for j in self.double_emission_columns[i][:]])
+            self.counts_array[:,i] = self.counts_array[:,i]-doubles + self.counts_array_4_emissions[:,0]
 
         ### Counts need to be integers
         self.counts_array = np.round(self.counts_array)
+
+    def correct_counts_with_double_emission_for_GHZ(self):
+
+        for i in range(2**self.qbit_number):
+                for j in range(3**self.qbit_number):
+                    triples = np.sum(self.counts_array_4_emissions[j,i*3:(i+1)*3]) 
+                    doubles = np.sum(self.counts_array_2_emissions[j,i*4:(i+1)*4]) - triples
+                    self.counts_array[j,i] = self.counts_array[j,i] - doubles
+
+        self.counts_array = np.round(self.counts_array)
+
         
 
 class TheoreticalCounts(XPCounts):

@@ -26,6 +26,10 @@ def general_unitary(x):
         return np.array([[np.exp(1j*x[0])*np.cos(x[2]), np.exp(1j*x[1])*np.sin(x[2])],
                         [-np.exp(-1j*x[1])*np.sin(x[2]), np.exp(-1j*x[0])*np.cos(x[2])]])
 
+def z_rotation(x):
+    return np.array([[np.exp(-1j*x[0]/2), 0],
+                     [0, np.exp(1j*x[0]/2)]])
+
 def wp_rotation(t, n):
     R= np.exp(-1j*n/2)*np.array([[np.cos(t)**2+np.exp(1j*n)*np.sin(t)**2,(1-np.exp(1j*n))*np.cos(t)*np.sin(t)],
             [(1-np.exp(1j*n))*np.cos(t)*np.sin(t),np.sin(t)**2+np.exp(1j*n)*np.cos(t)**2]])
@@ -90,7 +94,7 @@ class DensityMatrix:
         imag_density_matrix = density_matrix_plot.imag
         HV_label = {0: "H", 1: "V"}
 
-        HV_iterator = get_iterator(2, 4)
+        HV_iterator = get_iterator(2, self.qbit_number)
         axes_labels = []
         for k in range(np.shape(density_matrix_plot)[0]):
             axes_labels.append("".join(tuple(map(HV_label.get, HV_iterator[k]))))
@@ -118,13 +122,14 @@ class DensityMatrix:
         ax1 = fig1.add_subplot(111, projection='3d')
 
         # Plot the density matrix as 3D columns using a colormap
-        cmap = cm.get_cmap('tab20c')
-        ax1.bar3d(X.ravel(), Y.ravel(), np.zeros_like(Z), column_width, column_depth, column_heights, shade=True, color=cmap(Z))
+        cmap = cm.get_cmap('plasma')
+        # cmap = cm.get_cmap('set3')
+        ax1.bar3d(X.ravel(), Y.ravel(), np.zeros_like(Z), column_width, column_depth, column_heights, shade=True, color=cmap(Z), alpha=0.5)
 
         ax1.set_xticks(np.arange(ncols) + 0.5)
         ax1.set_yticks(np.arange(nrows) + 0.5)
-        ax1.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=8, fontweight='bold')
-        ax1.set_yticklabels(axes_labels, rotation=-60,fontsize=8, fontweight='bold')
+        ax1.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=8, fontweight='light')
+        ax1.set_yticklabels(axes_labels, rotation=-60,fontsize=8, fontweight='light')
 
         # Set the title
         ax1.set_title('Real Density Matrix', fontsize=14, fontweight='bold')
