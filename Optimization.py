@@ -15,7 +15,7 @@ import mystic
 from mystic.solvers import DifferentialEvolutionSolver, diffev2 ,fmin
 from mystic.strategy import Best1Bin
 from mystic.monitors import Monitor,VerboseMonitor
-from densitymatrix import DensityMatrix, general_unitary, apply_unitary_to_dm, fid
+from densitymatrix import DensityMatrix, general_unitary, apply_unitary_to_dm, fid,z_rotation
 from processmatrix import conversion, P_matrix, ChannelCJ, real_to_complex
 from constants import *
 
