@@ -44,15 +44,33 @@ and what fidelity that would be
 class FidelityResults has the respective useful properties we might want to reconver
 """
 
+# def function_fidelity_U(x, qubit_number, dm, bell):
+#     U1=np.diag([1,1])
+#     U2=general_unitary(x[0:3])
+#     P = np.kron(U1,U2)
+#     if qubit_number > 2:
+#         U3=general_unitary(x[3:6])
+#         P = np.kron(np.kron(U1,U2),U3) 
+#         if qubit_number > 3:
+#             U4=general_unitary(x[6:9])
+#             P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
+
+#     return -np.abs(dm.apply_unitary(P).fidelity(bell))
+
 def function_fidelity_U(x, qubit_number, dm, bell):
-    U1=np.diag([1,1])
-    U2=general_unitary(x[0:3])
+    # U1=np.diag([1,1])
+    U1=general_unitary(x[0:3])
+    # U2=general_unitary(x[0:3])
+    U2=general_unitary(x[3:6])
     P = np.kron(U1,U2)
     if qubit_number > 2:
-        U3=general_unitary(x[3:6])
+        # U3=np.diag([1,1])
+        # U3=general_unitary(x[3:6])
+        U3=general_unitary(x[6:9])
         P = np.kron(np.kron(U1,U2),U3) 
         if qubit_number > 3:
-            U4=general_unitary(x[6:9])
+            # U4=general_unitary(x[9:12])
+            U4=np.diag([1,1])
             P = np.kron(np.kron(np.kron(U1,U2),U3),U4)
 
     return -np.abs(dm.apply_unitary(P).fidelity(bell))
@@ -73,7 +91,8 @@ def function_fidelity_Rz(x, qubit_number, dm, bell):
 class FidelityResults(Results):
     @property
     def u1(self):
-        return np.diag([1,1])
+        # return np.diag([1,1])
+        return general_unitary(self.params[0:3])
     
     @property
     def u1_Rz(self):
@@ -81,15 +100,19 @@ class FidelityResults(Results):
     
     @property
     def u2(self):
-        return general_unitary(self.params[0:3])
-    
-    @property
-    def u3(self):
+        # return general_unitary(self.params[0:3])
         return general_unitary(self.params[3:6])
     
     @property
+    def u3(self):
+        # return general_unitary(self.params[3:6])
+        return general_unitary(self.params[6:9])
+        # return np.diag([1,1])
+    
+    @property
     def u4(self):
-        return general_unitary(self.params[6:9])    
+        # return general_unitary(self.params[9:12])   
+        return np.diag([1,1])
 
     @property
     def optimized_state(self):

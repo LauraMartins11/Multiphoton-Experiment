@@ -151,8 +151,8 @@ class XPCounts:
 
         for i in range(2**self.qbit_number):
                 for j in range(3**self.qbit_number):
-                    triples = np.sum(self.counts_array_4_emissions[j,i*3:(i+1)*3]) 
-                    doubles = np.sum(self.counts_array_2_emissions[j,i*4:(i+1)*4]) - triples
+                    #triples = np.sum(self.counts_array_4_emissions[j,i*3:(i+1)*3]) 
+                    doubles = np.sum(self.counts_array_2_emissions[j,i*4:(i+1)*4])
                     self.counts_array[j,i] = self.counts_array[j,i] - doubles
 
         self.counts_array = np.round(self.counts_array)
