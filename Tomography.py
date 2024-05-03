@@ -316,7 +316,7 @@ class LRETomography():
         return(error_simulation_dm)
     
 
-    def calculate_fidelity_error(self, players, error_runs, opt, target, optimization=False, bounds=None, penalty=None):
+    def calculate_fidelity_error(self, players, error_runs, target, optimization=None, bounds=None, penalty=None):
         self.players=players
         self.error_runs=error_runs
 
@@ -330,7 +330,8 @@ class LRETomography():
         for i in range(error_runs):
             self.error_simulation_dm.append(self.calculate_dm_from_simulated_counts(self.players))
 
-        if optimization is True:
+        if optimization is not None:
+            opt=optimization
             print("Optimizing the fidelity between input and target up to a unitary")
 
             for i in range(error_runs):
@@ -341,7 +342,7 @@ class LRETomography():
 
         else:
             for i in range(error_runs):
-                fidelity_sim[i]=self.error_simulation_dm[i].fidelity(target)
+                fidelity_sim[i]=self.error_simulation_dm[i].state.fidelity(target)
             
             ### I should make sure the fidelity is acutally real and not complex
             # fidelity_sim[i]=np.real(fid(dm_sim[i], target))
