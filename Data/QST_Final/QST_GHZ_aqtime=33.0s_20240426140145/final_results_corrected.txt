@@ -1,0 +1,1 @@
+file, fidelity, fidelity_mean, fidelity_std: QST_GHZ_aqtime=33.0s_20240426140145, (0.93506+0.00036j), -0.92762, 0.001639
