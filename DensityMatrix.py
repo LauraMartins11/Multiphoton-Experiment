@@ -88,7 +88,8 @@ class DensityMatrix:
         else :
                 self.state = fock_state
 
-    def plot_dm(self):
+    def plot_dm(self, cbar_real=True, cbar_im=True, save_pdf=None, save_svg=None):
+
         density_matrix_plot = self.state
         real_density_matrix = density_matrix_plot.real
         imag_density_matrix = density_matrix_plot.imag
@@ -111,63 +112,109 @@ class DensityMatrix:
         W = imag_density_matrix.flatten()
 
         # Set the column heights as Z values
-        column_heights = abs(Z)
-        column_heights2 = abs(W)
+        column_heights = np.abs(Z)
+        column_heights2 = np.abs(W)
 
         # Set the column widths and depths
         column_width = column_depth = 0.7
 
         # Create the first figure
         fig1 = plt.figure(figsize=(8, 6))
-        ax1 = fig1.add_subplot(111, projection='3d')
+        ax1 = fig1.add_subplot(111, projection="3d")
 
         # Plot the density matrix as 3D columns using a colormap
-        cmap = cm.get_cmap('plasma')
-        # cmap = cm.get_cmap('set3')
-        ax1.bar3d(X.ravel(), Y.ravel(), np.zeros_like(Z), column_width, column_depth, column_heights, shade=True, color=cmap(Z), alpha=0.5)
+        mapp = cm.ScalarMappable(cmap=cm.get_cmap("coolwarm"))
+        mapp.set_array(Z)
+        cmap = mapp.get_cmap()
+        ax1.bar3d(
+            X.ravel(),
+            Y.ravel(),
+            np.zeros_like(Z),
+            column_width,
+            column_depth,
+            column_heights,
+            shade=True,
+            color=cmap(Z/(np.max(Z))),
+            alpha=0.7,
+        )
 
         ax1.set_xticks(np.arange(ncols) + 0.5)
         ax1.set_yticks(np.arange(nrows) + 0.5)
-        ax1.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=8, fontweight='light')
-        ax1.set_yticklabels(axes_labels, rotation=-60,fontsize=8, fontweight='light')
+        ax1.set_xticklabels(
+            axes_labels, rotation=45, ha="right", fontsize=10, fontweight="normal"
+        )
+        ax1.set_yticklabels(axes_labels, rotation=-60, fontsize=10, fontweight="normal")
 
         # Set the title
-        ax1.set_title('Real Density Matrix', fontsize=14, fontweight='bold')
+        ax1.set_title("Real Density Matrix", fontsize=14, fontweight="normal")
 
         # Add a colorbar
-        cbar = fig1.colorbar(cm.ScalarMappable(cmap=cmap), ax=ax1)
-        cbar.set_label('Real Density', rotation=270, labelpad=15)
+        
+        if cbar_real==True:
+            cbar = fig1.colorbar(mapp, ax=ax1)
+            cbar.set_label("Density", rotation=270, labelpad=15)
 
         # Adjust plot limits to avoid cutoff of tick labels
         ax1.set_xlim(0, ncols)
         ax1.set_ylim(0, nrows)
         ax1.view_init(elev=15, azim=-45)
+
+        if save_pdf is not None:
+            plt.savefig(save_pdf+"\\density_matrix_re.pdf")
+
+        if save_svg is not None:
+            plt.savefig(save_svg+"\\density_matrix_re.svg")
+
+        # # Display the figures
+        plt.show()
+
+        ############################################################
         # Create the second figure
         fig2 = plt.figure(figsize=(8, 6))
-        ax2 = fig2.add_subplot(111, projection='3d')
+        ax2 = fig2.add_subplot(111, projection="3d")
 
         # Plot the density matrix as 3D columns using a colormap
-        ax2.bar3d(X.ravel(), Y.ravel(), np.zeros_like(W), column_width, column_depth, column_heights2, shade=True, color=cmap(W),zsort='max')
+        ax2.bar3d(
+            X.ravel(),
+            Y.ravel(),
+            np.zeros_like(W),
+            column_width,
+            column_depth,
+            column_heights2,
+            shade=True,
+            color=cmap(W/(np.max(Z))),
+            alpha=0.7
+        )
 
         # Set the x and y axis labels
         ax2.set_xticks(np.arange(ncols) + 0.5)
         ax2.set_yticks(np.arange(nrows) + 0.5)
-        ax2.set_xticklabels(axes_labels, rotation=45, ha='right', fontsize=10, fontweight='bold')
-        ax2.set_yticklabels(axes_labels, rotation=-60, fontsize=10, fontweight='bold')
+        ax2.set_xticklabels(
+            axes_labels, rotation=45, ha="right", fontsize=10, fontweight="normal"
+        )
+        ax2.set_yticklabels(axes_labels, rotation=-60, fontsize=10, fontweight="normal")
         ax2.set_zlim(0, np.max([column_heights, column_heights2]))  # Set z-axis limits
 
         # Set the title
-        ax2.set_title('Imaginary Density Matrix', fontsize=14, fontweight='bold')
+        ax2.set_title("Imaginary Density Matrix", fontsize=14, fontweight="normal")
 
         # Add a colorbar
-        cbar = fig2.colorbar(cm.ScalarMappable(cmap=cmap), ax=ax2)
-        cbar.set_label('Imag Density', rotation=270, labelpad=15)
+        if cbar_im==True:
+            cbar = fig2.colorbar(cm.ScalarMappable(cmap=cmap), ax=ax2)
+            cbar.set_label("Density", rotation=270, labelpad=15)
 
         # Adjust plot limits to avoid cutoff of tick labels
         ax2.set_xlim(0, ncols)
         ax2.set_ylim(0, nrows)
         ax2.view_init(elev=15, azim=-45)
-        # Display the figures
+
+        if save_pdf is not None:
+            plt.savefig(save_pdf+"\\density_matrix_im.pdf")
+
+        if save_svg is not None:
+            plt.savefig(save_svg+"\\density_matrix_im.svg")
+
+        # # Display the figures
         plt.show()
 
 
